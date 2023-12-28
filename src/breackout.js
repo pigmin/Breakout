@@ -4,7 +4,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { UniversalCamera, MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, MeshExploder, ParticleHelper, SolidParticleSystem, AssetsManager, ParticleSystem } from "@babylonjs/core";
+import { UniversalCamera, MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, MeshExploder, ParticleHelper, SolidParticleSystem, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, SpotLight } from "@babylonjs/core";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 
 import { PhysicsBody } from "@babylonjs/core/Physics/v2/physicsBody";
@@ -24,8 +24,6 @@ import "@babylonjs/loaders/glTF";
 
 import heightMapUrl from "../assets/textures/heightMap.png";
 
-import rockTextureUrl from "../assets/textures/rock.png";
-import rockTextureNormalUrl from "../assets/textures/rockn.png";
 
 import wallBaseColorUrl from "../assets/textures/Stylized_Sci-fi_Wall_001_basecolor.jpg";
 import wallNormalUrl from "../assets/textures/Stylized_Sci-fi_Wall_001_normal.jpg";
@@ -46,8 +44,8 @@ const brickHeight = 2;
 const brickPaddingX = 0.5;
 const brickPaddingZ = 0.5;
 
-const largeur = (bricksCols * brickWidth );
-const profondeur = (bricksRows * brickHeight );
+const largeur = (bricksCols * brickWidth);
+const profondeur = (bricksRows * brickHeight);
 const profondeurWalls = profondeur + 35;
 
 const hauteurWalls = 5;
@@ -58,8 +56,8 @@ const ballRadius = 0.75;
 const baseZPaddle = 12 - profondeurWalls;
 const offArea = 10 - profondeurWalls;
 
-const WORLD_MIN_X = -(brickWidth) + ballRadius;
-const WORLD_MAX_X = (largeur) - ballRadius;
+const WORLD_MIN_X =  -brickWidth + (epaisseurWalls/2) + ballRadius;
+const WORLD_MAX_X = (largeur) - (epaisseurWalls/2) - ballRadius;
 
 const WORLD_MIN_Y = -5;
 const WORLD_MAX_Y = 5;
@@ -70,6 +68,7 @@ const WORLD_MAX_Z = profondeur;
 var debugMaterial;
 var debugBox;
 var explosionParticleSystem;
+var shadowGenerator;
 
 class Entity {
 
@@ -83,7 +82,7 @@ class Entity {
   vx = 0;
   vy = 0;
   vz = 0;
-  
+
   ax = 0;
   ay = 0;
   az = 0;
@@ -145,6 +144,9 @@ class Ball extends Entity {
 
     // Our built-in 'sphere' shape.
     this.gameObject = MeshBuilder.CreateSphere("ball", options);
+    this.gameObject.receiveShadows = true;
+    shadowGenerator.addShadowCaster(this.gameObject);
+
     // Affect a material
     this.gameObject.material = ballMaterial;
     this.updatePosition();
@@ -154,7 +156,7 @@ class Ball extends Entity {
     var color = new Color3(0, 1, 0);
 
     trailMaterial.emissiveColor =
-    trailMaterial.diffuseColor = color;
+      trailMaterial.diffuseColor = color;
     trailMaterial.specularColor = new Color3(0, 0, 0);
     this.#trail.material = trailMaterial;
 
@@ -183,18 +185,17 @@ class Ball extends Entity {
       this.vz = -this.vz;
 
     //Debug
-    let xpos = Math.floor((this.x+brickWidth/2) / brickWidth);
-    let zpos = Math.floor((this.z+brickHeight/2) / brickHeight);
+    let xpos = Math.floor((this.x + brickWidth / 2) / brickWidth);
+    let zpos = Math.floor((this.z + brickHeight / 2) / brickHeight);
     debugBox.position = new Vector3(xpos * brickWidth, 0, zpos * brickHeight);
     debugBox.size = 2;
-    
+
     //Bricks collisions
-    if (this.#brickManager.getBrickAt(this.x, this.y, this.z))
-    {
+    if (this.#brickManager.getBrickAt(this.x, this.y, this.z)) {
       let bBothTestFailed = true;
       //On verifie d'ou on venait
-      let brickAtXminus = this.#brickManager.getBrickAt(this.prevX, this.y, this.z );
-      let brickAtZminus = this.#brickManager.getBrickAt(this.x , this.y, this.prevZ );
+      let brickAtXminus = this.#brickManager.getBrickAt(this.prevX, this.y, this.z);
+      let brickAtZminus = this.#brickManager.getBrickAt(this.x, this.y, this.prevZ);
       if (brickAtXminus == 0) {
         this.vx = -this.vx;
         bBothTestFailed = false;
@@ -239,25 +240,28 @@ class BrickObj extends Entity {
 
     // Our built-in 'sphere' shape.
     this.gameObject = MeshBuilder.CreateBox(`brick${index}`, options);
+    this.gameObject.receiveShadows = true;
+    shadowGenerator.addShadowCaster(this.gameObject, true);
+
     this.gameObject.enableEdgesRendering();
     this.gameObject.edgesWidth = 10;
     this.gameObject.edgesColor = new Color4(1, 0, 1, 1);
 
     this.#explosionParticleSystem = explosionParticleSystem.clone(`exp${index}`);
     this.#explosionParticleSystem.worldOffset = new Vector3(this.x, this.y, this.z);
-   // this.#explosionParticleSystem.targetStopDuration = 5;
-    
-   /* var hightLightLayer = new HighlightLayer("hightLightLayer");
-    hightLightLayer.outerGlow = false;
-    hightLightLayer.addMesh(this.gameObject, brickColors[this.type]);
-    var  alpha = 0;
-    this.gameObject.getScene().registerBeforeRender(() => {
-      alpha += 0.05;
-    
-      hightLightLayer.blurHorizontalSize = 0.5 + Math.cos(alpha) * 0.5 ;
-      hightLightLayer.blurVerticalSize = 0.5 + Math.sin(alpha) * 0.5;
-    });
-*/
+    // this.#explosionParticleSystem.targetStopDuration = 5;
+
+    /* var hightLightLayer = new HighlightLayer("hightLightLayer");
+     hightLightLayer.outerGlow = false;
+     hightLightLayer.addMesh(this.gameObject, brickColors[this.type]);
+     var  alpha = 0;
+     this.gameObject.getScene().registerBeforeRender(() => {
+       alpha += 0.05;
+     
+       hightLightLayer.blurHorizontalSize = 0.5 + Math.cos(alpha) * 0.5 ;
+       hightLightLayer.blurVerticalSize = 0.5 + Math.sin(alpha) * 0.5;
+     });
+ */
 
     this.updatePosition();
 
@@ -296,7 +300,7 @@ class BrickManager {
       new Color3(0, 1, 1),
       new Color3(1, 1, 1)
     ];
-    
+
     brickMaterials = [
       new StandardMaterial("brickMat0"),
       new StandardMaterial("brickMat1"),
@@ -315,10 +319,10 @@ class BrickManager {
 
       mat.bumpTexture = new Texture(brickNormalUrl);
       mat.bumpTexture.uScale = 1;
-      mat.bumpTexture.vScale = 1;  
+      mat.bumpTexture.vScale = 1;
     }
 
-    this.init();    
+    this.init();
   }
 
   init() {
@@ -332,7 +336,7 @@ class BrickManager {
         let z = j * brickHeight;
 
         let uneBrique = new BrickObj(index, j / 2, x, y, z);
-        
+
 
         this.#bricks[index] = uneBrique;
         this.#iLiveBricks++;
@@ -343,7 +347,7 @@ class BrickManager {
   reset() {
     this.#iLiveBricks = 0;
     for (let brick of this.#bricks) {
-      brick.bAlive = true;      
+      brick.bAlive = true;
       brick.setVisible(true);
       this.#iLiveBricks++;
     }
@@ -351,7 +355,7 @@ class BrickManager {
   }
 
   update() {
-    
+
   }
 
   isLevelFinished() {
@@ -359,9 +363,9 @@ class BrickManager {
   }
 
   getBrickAt(x, y, z) {
-    let xpos = Math.floor((x+brickWidth/2) / brickWidth);
-    let zpos = Math.floor((z+brickHeight/2) / brickHeight);
-    if (xpos >= 0 && xpos < bricksCols && zpos >= 0 && zpos < bricksRows)  {
+    let xpos = Math.floor((x + brickWidth / 2) / brickWidth);
+    let zpos = Math.floor((z + brickHeight / 2) / brickHeight);
+    if (xpos >= 0 && xpos < bricksCols && zpos >= 0 && zpos < bricksRows) {
       let index = zpos * bricksCols + xpos;
       if (index >= 0 && index < this.#bricks.length)
         return this.#bricks[index].bAlive;
@@ -370,18 +374,18 @@ class BrickManager {
   }
 
   destroyBrickAt(x, y, z) {
-    let xpos = Math.floor((x+brickWidth/2) / brickWidth);
-    let zpos = Math.floor((z+brickHeight/2) / brickHeight);
+    let xpos = Math.floor((x + brickWidth / 2) / brickWidth);
+    let zpos = Math.floor((z + brickHeight / 2) / brickHeight);
     let index = zpos * bricksCols + xpos;
     if (index >= 0 && index < this.#bricks.length && this.#bricks[index].bAlive) {
       this.#bricks[index].bAlive = false;
-      
+
       this.#bricks[index].setVisible(false);
       this.#bricks[index].explode();
       this.#iLiveBricks--;
 
       var that = this.#bricks[index];
-      
+
       /*ParticleHelper.CreateAsync("explosion").then((set) => {
 
         set.systems.forEach(s => {
@@ -430,6 +434,7 @@ class BreackOut {
   #assetsManager;
   #camera;
   #light;
+  #shadowGenerator;
   #hightLightLayer;
 
   #ground;
@@ -442,7 +447,7 @@ class BreackOut {
   #bInspector = false;
   #inputController;
 
-  
+
   #state = States.STATE_NONE;
 
 
@@ -457,7 +462,7 @@ class BreackOut {
     this.end();
   }
 
-  async init()  {
+  async init() {
     // Create our first scene.
     this.#scene = new Scene(this.#engine);
     this.#scene.clearColor = Color3.Black();
@@ -481,7 +486,7 @@ class BreackOut {
     this.#camera.setTarget(new Vector3((bricksCols * brickWidth) / 2, 0, -20));
 
     // This attaches the camera to the canvas
-//    this.#camera.attachControl(this.#canvas, true);
+    //    this.#camera.attachControl(this.#canvas, true);
 
     // Set up new rendering pipeline
     var pipeline = new DefaultRenderingPipeline("default", true, this.#scene, [this.#camera]);
@@ -490,32 +495,38 @@ class BreackOut {
     this.#scene.imageProcessingConfiguration.exposure = 3;
     pipeline.glowLayerEnabled = true
     pipeline.glowLayer.intensity = 0.75
-    
-    this.#inputController = new InputController(this.#scene);
-    this.#brickManager = new BrickManager(this.#scene);
-    this.#ball = new Ball(0, 0, baseZBall, this.#brickManager);
 
     debugMaterial = new StandardMaterial("debugMaterial", this.#scene);
     debugMaterial.emissiveColor = Color3.Red();
     debugMaterial.wireframe = true;
-    debugBox = MeshBuilder.CreateBox("debugBox", {size: ballRadius*2});
+    debugBox = MeshBuilder.CreateBox("debugBox", { size: ballRadius * 2 });
     debugBox.material = debugMaterial;
     debugBox.setEnabled(false);
 
-
     // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
-    this.#light = new HemisphericLight(
+    /*this.#light = new HemisphericLight(
       "light1",
       new Vector3(0, 1, 0),
       this.#scene
+    );*/
+    
+    this.#light = new DirectionalLight(
+      "light",
+      new Vector3(-1, -10, -1),
+      this.#scene
     );
+    this.#light.intensity = 0.8;
+    this.#light.position = new Vector3(20, 40, 20);
 
-    // Default intensity is 1. Let's dim the light a small amount
-    this.#light.intensity = 0.7;
+    var light0 = new HemisphericLight("light0", new Vector3(0, 1, 0), this.#scene);
+    light0.intensity = 0.25;
 
 
 
+    this.#shadowGenerator = shadowGenerator = new ShadowGenerator(512, this.#light);
+    this.#shadowGenerator.useExponentialShadowMap = true;
 
+    this.#shadowGenerator.setDarkness(0.4);
 
     // Our built-in 'ground' shape.
     /*    this.#ground = MeshBuilder.CreateGround(
@@ -524,11 +535,11 @@ class BreackOut {
           this.#scene
         );*/
     this.#ground = MeshBuilder.CreateGroundFromHeightMap("ground", heightMapUrl, {
-      width: 512,
-      height: 512,
+      width: 256,
+      height: 256,
       subdivisions: 1024,
       minHeight: 0,
-      maxHeight: 16,
+      maxHeight: 8,
       updatable: false,
       /*      onReady: function (mesh) {
                new PhysicsAggregate(
@@ -539,29 +550,23 @@ class BreackOut {
                 );
             },*/
     }, this.#scene);
-    this.#ground.position = new Vector3(0, -64, 0);
-
+    this.#ground.position = new Vector3(30, -10, 0);
+    this.#ground.receiveShadows = true;
 
     var groundMaterial = new StandardMaterial("groundMaterial");
     groundMaterial.diffuseTexture = new Texture(groundBaseColorUrl);
-    groundMaterial.diffuseTexture.vScale = 4;
-    groundMaterial.diffuseTexture.uScale = 4;
+    groundMaterial.diffuseTexture.vScale = 3;
+    groundMaterial.diffuseTexture.uScale = 3;
 
+    
 
     groundMaterial.bumpTexture = new Texture(groundNormalUrl);
-    groundMaterial.bumpTexture.vScale = 4;
-    groundMaterial.bumpTexture.uScale = 4;
-
-    groundMaterial.useParallax = true;
-    groundMaterial.useParallaxOcclusion = true;
-    groundMaterial.parallaxScaleBias = 0.1;
-    groundMaterial.specularPower = 1000.0;
-	  groundMaterial.specularColor = new Color3(0.5, 0.5, 0.5);
+    groundMaterial.bumpTexture.vScale = 3;
+    groundMaterial.bumpTexture.uScale = 3;
 
     // Affect a material
     this.#ground.material = groundMaterial;
-
-
+    
     this.buildWalls();
 
 
@@ -576,39 +581,42 @@ class BreackOut {
     /*    this.#skySphere = MeshBuilder.CreateSphere("skySphere", {diameter : 300, segments: 32}, this.#scene);
         this.#skySphere.material = skyMaterial;
     */
-
+    this.#inputController = new InputController(this.#scene);
+    this.#brickManager = new BrickManager(this.#scene);
+    this.#ball = new Ball(largeur/2, 0, baseZBall, this.#brickManager);
+    
     this.#ball.launch(0.25, 0, 0.5);
   }
 
   initPS() {
-      return new Promise((resolve) => {
+    return new Promise((resolve) => {
 
-        // Asset manager for loading texture and particle system
-        this.#assetsManager = new AssetsManager(this.#scene);
-        const particleTexture = this.#assetsManager.addTextureTask("explosion texture", particleExplosionTextureUrl)
-        const particleExplosion = this.#assetsManager.addTextFileTask("explosion", particleExplosionUrl);
+      // Asset manager for loading texture and particle system
+      this.#assetsManager = new AssetsManager(this.#scene);
+      const particleTexture = this.#assetsManager.addTextureTask("explosion texture", particleExplosionTextureUrl)
+      const particleExplosion = this.#assetsManager.addTextFileTask("explosion", particleExplosionUrl);
 
       // load all tasks
-        this.#assetsManager.load();
+      this.#assetsManager.load();
 
-        // after all tasks done, set up particle system
-        this.#assetsManager.onFinish = (tasks) => {
-            console.log("tasks successful", tasks);
+      // after all tasks done, set up particle system
+      this.#assetsManager.onFinish = (tasks) => {
+        console.log("tasks successful", tasks);
 
-            // prepare to parse particle system files
-            const particleJSON = JSON.parse(particleExplosion.text);
-            explosionParticleSystem = ParticleSystem.Parse(particleJSON, this.#scene, "", true);
+        // prepare to parse particle system files
+        const particleJSON = JSON.parse(particleExplosion.text);
+        explosionParticleSystem = ParticleSystem.Parse(particleJSON, this.#scene, "", true);
 
-            // set particle texture
-            explosionParticleSystem.particleTexture = particleTexture.texture;
-            explosionParticleSystem.emitter = new Vector3(0, 0, 0);
-            //var sphereEmitter = explosionParticleSystem.createSphereEmitter(1.0);
-            resolve(true);
-        }
-        
-      });
-      
-          
+        // set particle texture
+        explosionParticleSystem.particleTexture = particleTexture.texture;
+        explosionParticleSystem.emitter = new Vector3(0, 0, 0);
+        //var sphereEmitter = explosionParticleSystem.createSphereEmitter(1.0);
+        resolve(true);
+      }
+
+    });
+
+
   }
 
   loop() {
@@ -622,10 +630,10 @@ class BreackOut {
 
       //Update ball
       this.#ball.update();
-      
+
       //Update bricks
       this.#brickManager.update();
-      if ( this.#brickManager.isLevelFinished() ) {
+      if (this.#brickManager.isLevelFinished()) {
         //..??
         this.#brickManager.reset();
         this.#ball.launch(0.25, 0, 0.5);
@@ -634,11 +642,9 @@ class BreackOut {
       //Render : (auto)
 
       //Debug
-      if (this.#inputController.actions["KeyD"])
-      {
+      if (this.#inputController.actions["KeyD"]) {
         this.#bInspector = !this.#bInspector;
-        if (this.#bInspector)
-        {
+        if (this.#bInspector) {
           debugBox.setEnabled(true);
           Inspector.Show(this.#scene, { embedMode: true });
         }
@@ -665,33 +671,42 @@ class BreackOut {
 
     var wallMaterial = new StandardMaterial("wallMaterial", this.#scene);
     wallMaterial.diffuseTexture = new Texture(wallBaseColorUrl);
-    wallMaterial.diffuseTexture.uScale = largeur/5;
-    wallMaterial.diffuseTexture.vScale = 5/5;
+    wallMaterial.diffuseTexture.uScale = largeur / 5;
+    wallMaterial.diffuseTexture.vScale = 5 / 5;
 
     wallMaterial.bumpTexture = new Texture(wallNormalUrl);
-    wallMaterial.bumpTexture.uScale = largeur/5;
-    wallMaterial.bumpTexture.vScale = 5/5;
+    wallMaterial.bumpTexture.uScale = largeur / 5;
+    wallMaterial.bumpTexture.vScale = 5 / 5;
     //wallMaterial.ambientTexture = new Texture(wallAmbientOcclusionUrl);
 
 
     this.#walls = new TransformNode("walls", this.#scene);
-    var lWall = MeshBuilder.CreateBox("tWall", { width: profondeurWalls, height: hauteurWalls, depth: epaisseurWalls }, this.#scene);    
+    var lWall = MeshBuilder.CreateBox("tWall", { width: profondeurWalls, height: hauteurWalls, depth: epaisseurWalls }, this.#scene);
     lWall.rotation.y = -Math.PI / 2;
     lWall.position.x = -brickWidth;
-    lWall.position.z = (profondeur + epaisseurWalls*2.5) - (profondeurWalls / 2);
-    
-    var rWall = MeshBuilder.CreateBox("tWall", { width: profondeurWalls, height: hauteurWalls, depth: epaisseurWalls }, this.#scene);    
+    lWall.position.z = (profondeur + epaisseurWalls * 2.5) - (profondeurWalls / 2);
+
+    var rWall = MeshBuilder.CreateBox("tWall", { width: profondeurWalls, height: hauteurWalls, depth: epaisseurWalls }, this.#scene);
     rWall.rotation.y = Math.PI / 2;
     rWall.position.x = largeur;
-    rWall.position.z = (profondeur + epaisseurWalls*2.5) - (profondeurWalls / 2);
-    
+    rWall.position.z = (profondeur + epaisseurWalls * 2.5) - (profondeurWalls / 2);
+
 
     var tWall = MeshBuilder.CreateBox("tWall", { width: (largeur + brickWidth), height: hauteurWalls, depth: epaisseurWalls }, this.#scene);
-    tWall.position = new Vector3((largeur - brickWidth) / 2, 0, profondeur + (epaisseurWalls*2));
+    tWall.position = new Vector3((largeur - brickWidth) / 2, 0, profondeur + (epaisseurWalls * 2));
     lWall.setParent(this.#walls);
     rWall.setParent(this.#walls);
     tWall.setParent(this.#walls);
-
+    lWall.receiveShadows = true;
+    this.#shadowGenerator.addShadowCaster(lWall);
+    rWall.receiveShadows = true;
+    this.#shadowGenerator.addShadowCaster(rWall);
+    tWall.receiveShadows = true;
+    this.#shadowGenerator.addShadowCaster(tWall);
+    /*    lWall.checkCollisions = true;
+        rWall.checkCollisions = true;
+        tWall.checkCollisions = true;
+    */
     lWall.material = wallMaterial;
     tWall.material = wallMaterial;
     rWall.material = wallMaterial;
@@ -705,7 +720,7 @@ class BreackOut {
 }
 
 class InputController {
-  
+
   #scene;
   inputMap = {};
   actions = {};
@@ -716,7 +731,7 @@ class InputController {
     this.#scene.onKeyboardObservable.add((kbInfo) => {
       switch (kbInfo.type) {
         case KeyboardEventTypes.KEYDOWN:
-          this.inputMap[kbInfo.event.code] = true;        
+          this.inputMap[kbInfo.event.code] = true;
           console.log(`KEY DOWN: ${kbInfo.event.code} / ${kbInfo.event.key}`);
           break;
         case KeyboardEventTypes.KEYUP:
@@ -725,7 +740,7 @@ class InputController {
           console.log(`KEY UP: ${kbInfo.event.code} / ${kbInfo.event.key}`);
           break;
       }
-    });    
+    });
   }
 
   update() {
