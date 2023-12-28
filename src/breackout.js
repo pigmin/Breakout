@@ -4,7 +4,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { UniversalCamera, MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, MeshExploder, ParticleHelper, SolidParticleSystem } from "@babylonjs/core";
+import { UniversalCamera, MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, MeshExploder, ParticleHelper, SolidParticleSystem, AssetsManager, ParticleSystem } from "@babylonjs/core";
 import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 
 import { PhysicsBody } from "@babylonjs/core/Physics/v2/physicsBody";
@@ -36,6 +36,8 @@ import brickNormalUrl from "../assets/textures/Ice_001_NRM.jpg";
 import groundBaseColorUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_basecolor.jpg";
 import groundNormalUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_normal.jpg";
 
+import particleExplosionUrl from "../assets/particles/systems/particleSystem.json"
+import particleExplosionTextureUrl from "../assets/particles/textures/dotParticle.png"
 
 const bricksRows = 7;
 const bricksCols = 13;
@@ -67,6 +69,7 @@ const WORLD_MAX_Z = profondeur;
 
 var debugMaterial;
 var debugBox;
+var explosionParticleSystem;
 
 class Entity {
 
@@ -219,8 +222,9 @@ class BrickObj extends Entity {
 
   type = 0;
   bAlive = true;
+  #explosionParticleSystem
 
-  constructor(type, x, y, z) {
+  constructor(index, type, x, y, z) {
     super(x, y, z);
     this.type = Scalar.Clamp(Math.floor(type), 0, 3);
 
@@ -234,11 +238,16 @@ class BrickObj extends Entity {
     //this.y = options.height/2;
 
     // Our built-in 'sphere' shape.
-    this.gameObject = MeshBuilder.CreateBox("brick", options);
+    this.gameObject = MeshBuilder.CreateBox(`brick${index}`, options);
     this.gameObject.enableEdgesRendering();
     this.gameObject.edgesWidth = 10;
-    this.gameObject.edgesColor = new Color4(1, 0, 0, 1);
-    var hightLightLayer = new HighlightLayer("hightLightLayer");
+    this.gameObject.edgesColor = new Color4(1, 0, 1, 1);
+
+    this.#explosionParticleSystem = explosionParticleSystem.clone(`exp${index}`);
+    this.#explosionParticleSystem.worldOffset = new Vector3(this.x, this.y, this.z);
+   // this.#explosionParticleSystem.targetStopDuration = 5;
+    
+   /* var hightLightLayer = new HighlightLayer("hightLightLayer");
     hightLightLayer.outerGlow = false;
     hightLightLayer.addMesh(this.gameObject, brickColors[this.type]);
     var  alpha = 0;
@@ -248,19 +257,23 @@ class BrickObj extends Entity {
       hightLightLayer.blurHorizontalSize = 0.5 + Math.cos(alpha) * 0.5 ;
       hightLightLayer.blurVerticalSize = 0.5 + Math.sin(alpha) * 0.5;
     });
-
+*/
 
     this.updatePosition();
 
     // Move the sphere upward 1/2 its height
     //this.gameObject.diffuseColor = new Color4(1, 1, 1, 0.5);
     this.gameObject.material = brickMaterials[this.type];
-    this.gameObject.material.diffuseColor = brickColors[this.type];
+    this.gameObject.material.emissiveColor = brickColors[this.type];
     this.gameObject.receiveShadows = true;
   }
 
   setVisible(bVisible) {
     this.gameObject.setEnabled(bVisible);
+  }
+
+  explode() {
+    this.#explosionParticleSystem.start();
   }
 
 
@@ -318,7 +331,7 @@ class BrickManager {
         let y = 0;
         let z = j * brickHeight;
 
-        let uneBrique = new BrickObj(j / 2, x, y, z);
+        let uneBrique = new BrickObj(index, j / 2, x, y, z);
         
 
         this.#bricks[index] = uneBrique;
@@ -364,9 +377,11 @@ class BrickManager {
       this.#bricks[index].bAlive = false;
       
       this.#bricks[index].setVisible(false);
+      this.#bricks[index].explode();
       this.#iLiveBricks--;
 
       var that = this.#bricks[index];
+      
       /*ParticleHelper.CreateAsync("explosion").then((set) => {
 
         set.systems.forEach(s => {
@@ -412,6 +427,7 @@ class BreackOut {
   #canvas;
   #engine;
   #scene;
+  #assetsManager;
   #camera;
   #light;
   #hightLightLayer;
@@ -435,16 +451,18 @@ class BreackOut {
     this.#engine = engine;
   }
 
-  start() {
-    this.init();
+  async start() {
+    await this.init();
     this.loop();
     this.end();
   }
 
-  init() {
+  async init()  {
     // Create our first scene.
     this.#scene = new Scene(this.#engine);
     this.#scene.clearColor = Color3.Black();
+
+    await this.initPS();
 
     // Add the highlight layer.
     this.#hightLightLayer = new HighlightLayer("hightLightLayer", this.#scene);
@@ -472,7 +490,6 @@ class BreackOut {
     this.#scene.imageProcessingConfiguration.exposure = 3;
     pipeline.glowLayerEnabled = true
     pipeline.glowLayer.intensity = 0.75
-
     
     this.#inputController = new InputController(this.#scene);
     this.#brickManager = new BrickManager(this.#scene);
@@ -561,6 +578,37 @@ class BreackOut {
     */
 
     this.#ball.launch(0.25, 0, 0.5);
+  }
+
+  initPS() {
+      return new Promise((resolve) => {
+
+        // Asset manager for loading texture and particle system
+        this.#assetsManager = new AssetsManager(this.#scene);
+        const particleTexture = this.#assetsManager.addTextureTask("explosion texture", particleExplosionTextureUrl)
+        const particleExplosion = this.#assetsManager.addTextFileTask("explosion", particleExplosionUrl);
+
+      // load all tasks
+        this.#assetsManager.load();
+
+        // after all tasks done, set up particle system
+        this.#assetsManager.onFinish = (tasks) => {
+            console.log("tasks successful", tasks);
+
+            // prepare to parse particle system files
+            const particleJSON = JSON.parse(particleExplosion.text);
+            explosionParticleSystem = ParticleSystem.Parse(particleJSON, this.#scene, "", true);
+
+            // set particle texture
+            explosionParticleSystem.particleTexture = particleTexture.texture;
+            explosionParticleSystem.emitter = new Vector3(0, 0, 0);
+            //var sphereEmitter = explosionParticleSystem.createSphereEmitter(1.0);
+            resolve(true);
+        }
+        
+      });
+      
+          
   }
 
   loop() {
