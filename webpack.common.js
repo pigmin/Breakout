@@ -41,6 +41,14 @@ module.exports = {
                 exclude: /node_modules/,
             },
             {
+                test: /\.(mp3|wav|ogg)$/i,
+                use: [
+                    {
+                        loader: "file-loader",
+                    },
+                ],
+            },
+            {
                 test: /\.(png|jpg|gif|env|glb|gltf|stl|json)$/i,
                 use: [
                     {

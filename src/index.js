@@ -9,7 +9,7 @@ import BreackOut from "./breackout";
 const canvas = document.getElementById("renderCanvas");
 
 // Associate a Babylon Engine to it.
-const engine = new Engine(canvas, true, {stencil: true});
+const engine = new Engine(canvas, false, {stencil: true});
 
 // Watch for browser/canvas resize events
 window.addEventListener("resize", function () {

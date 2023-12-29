@@ -33,9 +33,11 @@
     "webpack-dev-server": "^4.15.1",
     "webpack-merge": "^5.10.0"
   },
+  "sideEffects": true,
   "scripts": {
     "start": "npx webpack serve --config webpack.dev.js",
     "start:test": "npx webpack serve --config webpack.tests.js",
+    "start:prod": "webpack serve --config webpack.prod.js",
     "build:dev": "npx webpack --config webpack.dev.js",
     "build": "npx webpack --config webpack.prod.js",
     "lint": "npx eslint . --ext .js"
