@@ -97,6 +97,9 @@ let shadowGenerator;
 const START_LIVES = 3;
 const MAX_LIVES = 5;
 let nbLives = START_LIVES;
+let currentScore = 0;
+let currentHighScore = 0;
+let currentLevel = 1;
 
 let gameState;
 function changeGameState(newState) {
@@ -381,7 +384,7 @@ class Ball extends Entity {
       let brickCol = this.#brickManager.getBrickCol(this.x);
       let brickRow = this.#brickManager.getBrickRow(this.z);
 
-      let brickAtBall = this.#brickManager.getBrickAtRowCol(brickCol, brickRow);
+      let brickAtBall = this.#brickManager.isBrickAtRowCol(brickCol, brickRow);
       if (brickAtBall) {
         let bBothTestFailed = true;
         //On verifie d'ou on venait
@@ -389,7 +392,7 @@ class Ball extends Entity {
         let prevBrickRow = this.#brickManager.getBrickRow(this.prevZ);
 
         if (prevBrickCol != brickCol) {
-          let brickAtXminus = this.#brickManager.getBrickAtRowCol(prevBrickCol, brickRow);
+          let brickAtXminus = this.#brickManager.isBrickAtRowCol(prevBrickCol, brickRow);
 
           if (!brickAtXminus) {
             this.vx = -this.vx;
@@ -397,7 +400,7 @@ class Ball extends Entity {
           }
         }
         if (prevBrickRow != brickRow) {
-          let brickAtZminus = this.#brickManager.getBrickAtRowCol(brickCol, prevBrickRow);
+          let brickAtZminus = this.#brickManager.isBrickAtRowCol(brickCol, prevBrickRow);
 
           if (!brickAtZminus) {
             this.vz = -this.vz;
@@ -411,6 +414,7 @@ class Ball extends Entity {
 
         this.#brickManager.destroyBrickAt(this.x, this.y, this.z);
         console.log(getRandomInt(1) + SoundsFX.BRICK1);
+        
         playSound(getRandomInt(1) + SoundsFX.BRICK1);
       }
 
@@ -620,9 +624,18 @@ class BrickManager {
     if (xpos >= 0 && xpos < bricksCols && zpos >= 0 && zpos < bricksRows) {
       let index = zpos * bricksCols + xpos;
       if (index >= 0 && index < this.#bricks.length)
-        return this.#bricks[index].bAlive;
+        return this.#bricks[index];
     }
     return null;
+  }
+
+  isBrickAtRowCol(xpos, zpos) {
+    if (xpos >= 0 && xpos < bricksCols && zpos >= 0 && zpos < bricksRows) {
+      let index = zpos * bricksCols + xpos;
+      if (index >= 0 && index < this.#bricks.length)
+        return this.#bricks[index].bAlive;
+    }
+    return false;
   }
 
   getBrickAt(x, y, z) {
@@ -633,7 +646,7 @@ class BrickManager {
       if (index >= 0 && index < this.#bricks.length)
         return this.#bricks[index].bAlive;
     }
-    return null;
+    return false;
   }
 
   destroyBrickAt(x, y, z) {
@@ -659,8 +672,9 @@ class BrickManager {
         set.start();
     });*/
 
-
+      currentScore += 10 * (this.#bricks[index].type + 1);
     }
+
   }
 
   draw() {
@@ -1117,6 +1131,7 @@ this.#ground.material = groundMaterial;
     this.#engine.runRenderLoop(() => {
 
       this.#inputController.update();
+      this.updateAllText();
 
       if (gameState == States.STATE_PRE_INTRO) {
 
@@ -1219,7 +1234,9 @@ this.#ground.material = groundMaterial;
     this.#ball.reset();
     //this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
     nbLives = START_LIVES;    
-    this.updateTextLives();
+    if (currentScore > currentHighScore)
+      currentHighScore = currentScore;
+    currentScore = 0;
   }
 
   end() { }
@@ -1391,6 +1408,36 @@ this.#ground.material = groundMaterial;
 
     this.#gameUI = AdvancedDynamicTexture.CreateFullscreenUI("gameUI");
 
+    //Score
+    this.textScore = new TextBlock();
+    this.textScore.color = "white";
+    this.textScore.fontSize = fontSize;
+    this.textScore.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.textScore.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    this.textScore.left = -spacing * 3;
+    this.textScore.top = 20;
+    this.#gameUI.addControl(this.textScore);
+
+    // Level
+    this.textLevel = new TextBlock();
+    this.textLevel.color = "white";
+    this.textLevel.fontSize = fontSize;
+    this.textLevel.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.textLevel.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER
+    this.textLevel.left = -spacing;
+    this.textLevel.top = 20;
+    this.#gameUI.addControl(this.textLevel);
+
+    // High score
+    this.textHigh = new TextBlock();
+    this.textHigh.color = "white";
+    this.textHigh.fontSize = fontSize;
+    this.textHigh.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.textHigh.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER
+    this.textHigh.left = spacing * 3;
+    this.textHigh.top = 20;
+    this.#gameUI.addControl(this.textHigh);
+    
     // Lives
     this.textLives = new TextBlock("Score");
     this.textLives.color = "white";
@@ -1398,12 +1445,13 @@ this.#ground.material = groundMaterial;
     
     //this.textLives.fontFamily = '"Press Start 2P"';
     this.textLives.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    this.textLives.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.textLives.left = 40;
-    this.textLives.top = 40;
+    this.textLives.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    this.textLives.left = spacing;
+    this.textLives.top = 20;
     this.#gameUI.addControl(this.textLives);
     this.showGameUI(false);
-    this.updateTextLives();
+    
+    this.updateAllText();
     window.onresize = () => {
       this.getCanvasSize();
       this.fixTextScale();
@@ -1412,8 +1460,24 @@ this.#ground.material = groundMaterial;
   showGameUI(bActive) {
     this.#gameUI.rootContainer.isVisible = bActive;
   }
+  updateAllText() {
+    this.updateTextLives();
+    this.updateTextScore();
+    this.updateTextHighScore();
+    this.updateTextLevel();
+  }
   updateTextLives() {
     this.textLives.text = `Vies : ${nbLives}`;
+  }
+  updateTextScore() {
+    this.textScore.text = `Score : ${currentScore}`;
+  }
+  updateTextHighScore() {
+    this.textHigh.text = `High Score : ${currentHighScore}`;
+  }
+  
+  updateTextLevel() {
+    this.textLevel.text = `Lvl : ${currentLevel}`;
   }
 
   
@@ -1428,13 +1492,13 @@ this.#ground.material = groundMaterial;
     let spacing = 150 * this.textScale;
     this.textLives.fontSize = fontSize;
     this.textLives.left = spacing;
-    /*    this.textScore.fontSize = fontSize;
+    this.textScore.fontSize = fontSize;
     this.textLevel.fontSize = fontSize;
     this.textHigh.fontSize = fontSize;
     this.textScore.left = -spacing * 3;
     this.textLevel.left = -spacing;
     this.textHigh.left = spacing * 3;
-  */  }
+    }
 
 }
 
