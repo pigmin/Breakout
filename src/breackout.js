@@ -1147,6 +1147,7 @@ this.#ground.material = groundMaterial;
         //this.#camera.setTarget(this.#cameraGameTarget);
         changeGameState(States.STATE_INTRO);
         this.launchGameStartAnimation(() => {
+          Engine.audioEngine.unlock();
           this.showGameUI(true);
           changeGameState(States.STATE_START_GAME);
         });
@@ -1155,7 +1156,6 @@ this.#ground.material = groundMaterial;
         //RAS
       }
       else if (gameState == States.STATE_START_GAME) {
-        Engine.audioEngine.unlock();
         changeGameState(States.STATE_LAUNCH);
       }
       else if (gameState == States.STATE_LAUNCH) {
@@ -1194,6 +1194,8 @@ this.#ground.material = groundMaterial;
         this.#brickManager.update();
         if (this.#brickManager.isLevelFinished()) {
           //..??
+          currentLevel++;
+          currentScore+= 100;
           this.#brickManager.reset();
           this.#ball.launch(0.25, 0, 0.5);
         }
