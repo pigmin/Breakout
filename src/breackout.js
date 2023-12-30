@@ -753,8 +753,7 @@ class BreackOut {
     );
 */
     // This targets the camera to scene origin
-    this.#camera.setTarget(new Vector3((bricksCols * brickWidth) / 2, 0, -20));
-
+    this.gotoMenuCamera();
     // This attaches the camera to the canvas
     //this.#camera.attachControl(this.#canvas, true);
 
@@ -879,31 +878,50 @@ this.#ground.material = groundMaterial;
       Animation.ANIMATIONTYPE_VECTOR3,
       Animation.ANIMATIONLOOPMODE_CONSTANT
     );
-
-    // console.log(animationcamera);
     var keys = [];
-
     keys.push({
       frame: startFrame,
       value: this.#camera.position.clone(),
       // outTangent: new Vector3(1, 0, 0)
     });
-
     keys.push({
       frame: endFrame / 2,
       value: new Vector3(39, 177, -550),
     });
-
     keys.push({
       frame: endFrame,
       // inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraGamePosition,
     });
-
     animationcamera.setKeys(keys);
+    
+    //------------------TARGET
+    var animationcameraTarget = new Animation(
+      "PreIntroAnimationTarget",
+      "target",
+      frameRate,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+        var keysTarget = [];
+    keysTarget.push({
+      frame: startFrame,
+      value: this.#camera.target.clone(),
+      // outTangent: new Vector3(1, 0, 0)
+    });
+    keysTarget.push({
+      frame: endFrame,
+      // inTangent: new Vector3(-1, 0, 0),
+      value: this.#cameraGameTarget,
+    });
+
+    animationcameraTarget.setKeys(keysTarget);
+    
+
 
     this.#camera.animations = [];
     this.#camera.animations.push(animationcamera);
+    this.#camera.animations.push(animationcameraTarget);
 
     this.#scene.beginAnimation(this.#camera, startFrame, endFrame, false, 1, callback);
   }
@@ -950,6 +968,8 @@ this.#ground.material = groundMaterial;
     });
 
     animationcamera.setKeys(keys);
+
+  
 
     this.#camera.animations = [];
     this.#camera.animations.push(animationcamera);
@@ -1031,7 +1051,7 @@ this.#ground.material = groundMaterial;
 
       }
       else if (gameState == States.STATE_START_INTRO) {
-        this.#camera.setTarget(this.#cameraGameTarget);
+        //this.#camera.setTarget(this.#cameraGameTarget);
         changeGameState(States.STATE_INTRO);
         this.launchGameStartAnimation(() => {
           changeGameState(States.STATE_LAUNCH);
