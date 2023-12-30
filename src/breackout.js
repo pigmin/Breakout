@@ -36,7 +36,9 @@ import groundNormalUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_
 import particleExplosionUrl from "../assets/particles/systems/particleSystem.json"
 import particleExplosionTextureUrl from "../assets/particles/textures/dotParticle.png"
 
-import musicUrl from "../assets/musics/Eric Cubizolle - Andromeda.mp3";
+//import musicUrl from "../assets/musics/Eric Cubizolle - Andromeda.mp3";
+import musicUrl from "../assets/musics/2ND_PM.mp3";
+
 //import boingSoundUrl from "../assets/sounds/446100__justinvoke__bounce.wav";
 import brickTouchedSoundUrl1 from "../assets/sounds/Arkanoid SFX (7).wav";
 import brickTouchedSoundUrl2 from "../assets/sounds/Arkanoid SFX (8).wav";
@@ -69,10 +71,10 @@ const profondeurWalls = profondeur + 45;
 const hauteurWalls = 5;
 const epaisseurWalls = 2;
 
-const BALL_SPEED_FACTOR = 1.25;
+const BALL_SPEED_FACTOR = 1.5;
 
 const MIN_P_VELOCITY = 0.05;
-const DRAG_FORCE = 0.7;
+const DRAG_FORCE = 0.65;
 const PADDLE_ACC_X = 0.4;
 const MAX_VELOCITY = 8;
 
@@ -110,7 +112,7 @@ let explosionParticleSystem;
 let shadowGenerator;
 
 
-const START_LIVES = 10;
+const START_LIVES = 100;
 const MAX_LIVES = 5;
 let nbLives = START_LIVES;
 let currentScore = 0;
@@ -757,7 +759,7 @@ class BrickManager {
         this.#bricks[index].setVisible(false);
         this.#bricks[index].explode();
         this.#iLiveBricks--;
-        currentScore += 10 * (this.#bricks[index].score + 1);
+        currentScore += this.#bricks[index].score;
       }
 
     }
