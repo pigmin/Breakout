@@ -86,7 +86,7 @@ const WORLD_MAX_Z = profondeur;
 const BALL_LAUNCH_VX = 0.15;
 const BALL_LAUNCH_VZ = 0.5;
 
-const StartButtonMeshTarget = "Cube.061_177";
+const StartButtonMeshTarget = "Object_351";
 //const StartButtonMeshTarget = "panel_plate.001_140";
 
 var debugMaterial;
@@ -671,6 +671,7 @@ const States = Object.freeze({
   STATE_NONE: 0,
   STATE_INIT: 10,
   STATE_LOADING: 20,
+  STATE_PRE_INTRO: 22,
   STATE_MENU: 25,
   STATE_START_INTRO: 28,
   STATE_INTRO: 30,
@@ -710,7 +711,7 @@ class BreackOut {
   #guiTexture;
 
   #cameraStartPosition = new Vector3(-257, 566, -620);
-  #cameraMenuPosition = new Vector3(-103, 21, -3);
+  #cameraMenuPosition = new Vector3(-199, 88, -360);
 
   #cameraGamePosition = new Vector3(39, 75, -57);
   #cameraGameTarget = new Vector3((bricksCols * brickWidth) / 2, 0, -20);
@@ -856,20 +857,65 @@ this.#ground.material = groundMaterial;
     this.#ball = new Ball(this.#paddle.x, 0, baseZBall, this.#brickManager, this.#paddle);
 
 
-    changeGameState(States.STATE_MENU);
+    changeGameState(States.STATE_PRE_INTRO);
+    this.launchPreIntroAnimation(() => {
+      changeGameState(States.STATE_MENU);
+    });
+
 
   }
 
 
-
-  launchCameraAnimation(callback) {
+  launchGameStartAnimation(callback) {
 
     const startFrame = 0;
     const endFrame = 400;
     const frameRate = 60;
 
     var animationcamera = new Animation(
-      "myAnimationcamera",
+      "GameStartAnimation",
+      "position",
+      frameRate,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+
+    // console.log(animationcamera);
+    var keys = [];
+
+    keys.push({
+      frame: startFrame,
+      value: this.#camera.position.clone(),
+      // outTangent: new Vector3(1, 0, 0)
+    });
+
+    keys.push({
+      frame: endFrame / 2,
+      value: new Vector3(39, 177, -550),
+    });
+
+    keys.push({
+      frame: endFrame,
+      // inTangent: new Vector3(-1, 0, 0),
+      value: this.#cameraGamePosition,
+    });
+
+    animationcamera.setKeys(keys);
+
+    this.#camera.animations = [];
+    this.#camera.animations.push(animationcamera);
+
+    this.#scene.beginAnimation(this.#camera, startFrame, endFrame, false, 1, callback);
+  }
+
+  launchPreIntroAnimation(callback) {
+
+    const frameRate = 60;
+    const startFrame = 0;
+    const endFrame = 600;
+
+    var animationcamera = new Animation(
+      "PreIntroAnimation",
       "position",
       frameRate,
       Animation.ANIMATIONTYPE_VECTOR3,
@@ -886,14 +932,21 @@ this.#ground.material = groundMaterial;
     });
 
     keys.push({
-      frame: endFrame / 2,
+      frame: endFrame / 3,
       value: new Vector3(39, 177, -550),
     });
+    
+    keys.push({
+      frame: 2*endFrame / 3,
+      // inTangent: new Vector3(-1, 0, 0),
+      value: new Vector3(240, 107, -353),
+    });
+
 
     keys.push({
       frame: endFrame,
       // inTangent: new Vector3(-1, 0, 0),
-      value: new Vector3(39, 75, -57),
+      value: this.#cameraMenuPosition,
     });
 
     animationcamera.setKeys(keys);
@@ -926,7 +979,7 @@ this.#ground.material = groundMaterial;
         this.#assetsManager,
         this.#myMeshes,
         0,
-        { position: new Vector3(-73.11, -224.68, -92.87), scaling: new Vector3(200, 200, 200) },
+        { position: new Vector3(124, -224.68, -92.87), scaling: new Vector3(-200, 200, 200) },
         this.#scene,
         this.#shadowGenerator
       );
@@ -967,7 +1020,12 @@ this.#ground.material = groundMaterial;
 
       this.#inputController.update();
 
-      if (gameState == States.STATE_MENU) {
+      if (gameState == States.STATE_PRE_INTRO) {
+
+
+
+      }
+      else if (gameState == States.STATE_MENU) {
 
 
 
@@ -975,7 +1033,7 @@ this.#ground.material = groundMaterial;
       else if (gameState == States.STATE_START_INTRO) {
         this.#camera.setTarget(this.#cameraGameTarget);
         changeGameState(States.STATE_INTRO);
-        this.launchCameraAnimation(() => {
+        this.launchGameStartAnimation(() => {
           changeGameState(States.STATE_LAUNCH);
         });
       }
@@ -1114,6 +1172,7 @@ this.#ground.material = groundMaterial;
 
     meshTask.onSuccess = function (task) {
       const parent = task.loadedMeshes[0];
+
       /*      const obj = parent.getChildMeshes()[0];
             obj.setParent(null);
             parent.dispose();*/
@@ -1136,6 +1195,7 @@ this.#ground.material = groundMaterial;
       parent.receiveShadows = true;
       for (let mesh of parent.getChildMeshes()) {
         mesh.receiveShadows = true;
+        mesh.computeWorldMatrix(true);
       }
       if (bAddPhysics === true) {
         new PhysicsAggregate(
@@ -1161,12 +1221,12 @@ this.#ground.material = groundMaterial;
   }
   gotoMenuCamera() {
     let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget); 
-    this.#camera.position = this.#cameraMenuPosition;
+    this.#camera.position = this.#cameraMenuPosition.clone();
     this.#camera.setTarget(guiParent.getAbsolutePosition());       
   }
 
   gotoGameCamera() {
-    this.#camera.position = this.#cameraGamePosition;
+    this.#camera.position = this.#cameraGamePosition.clone();
     this.#camera.setTarget(this.#cameraGameTarget);
   }
 
@@ -1175,18 +1235,21 @@ this.#ground.material = groundMaterial;
         let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget); 
         this.#camera.setTarget(guiParent.getAbsolutePosition());
 
-        var startGameButton = MeshBuilder.CreateBox("startGameButton", {size:20});
+        var parentPos = guiParent.getAbsolutePosition();
 
-        startGameButton.position = guiParent.getAbsolutePosition();
-        startGameButton.rotation.x = -Math.PI/2;
+        var startGameButton = MeshBuilder.CreatePlane("startGameButton", {width:10, depth: 10});
+        startGameButton.scaling = new Vector3(3.5, 20, 10);
+        startGameButton.position =  new Vector3(-259, 87, -361.3);
+        startGameButton.rotation.x = Math.PI/8;
+        startGameButton.rotation.y = -Math.PI/2;
 
     this.#guiTexture = AdvancedDynamicTexture.CreateForMesh(startGameButton);
 
     var button1 = Button.CreateSimpleButton("but1", "START");
-    button1.width = 5;
-    button1.height = 5;
+    button1.width = 0.2;
+    button1.height = 0.8;
     button1.color = "white";
-    button1.fontSize = 50;
+    button1.fontSize = 64;
     button1.background = "";
     button1.onPointerUpObservable.add(() => {
         this.hideGUI();
