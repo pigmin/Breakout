@@ -69,7 +69,13 @@ const profondeurWalls = profondeur + 45;
 const hauteurWalls = 5;
 const epaisseurWalls = 2;
 
-const BALL_SPEED_FACTOR = 1.7;
+const BALL_SPEED_FACTOR = 1.25;
+
+const MIN_P_VELOCITY = 0.05;
+const DRAG_FORCE = 0.7;
+const PADDLE_ACC_X = 0.4;
+const MAX_VELOCITY = 8;
+
 
 const baseZBall = -30;
 const ballRadius = 0.75;
@@ -104,7 +110,7 @@ let explosionParticleSystem;
 let shadowGenerator;
 
 
-const START_LIVES = 3;
+const START_LIVES = 10;
 const MAX_LIVES = 5;
 let nbLives = START_LIVES;
 let currentScore = 0;
@@ -265,10 +271,6 @@ class Paddle extends Entity {
 
   checkInput() {
 
-    const MIN_P_VELOCITY = 0.05;
-    const DRAG_FORCE = 0.7;
-    const PADDLE_ACC_X = 0.7;
-    const MAX_VELOCITY = 10;
 
     if (Math.abs(this.vx) > MIN_P_VELOCITY)
       this.vx = this.vx * DRAG_FORCE;
@@ -425,9 +427,8 @@ class Ball extends Entity {
           this.vz = -this.vz;
 
 
-        this.#brickManager.destroyBrickAt(this.x, this.y, this.z);
-        console.log(getRandomInt(1) + SoundsFX.BRICK1);
-        
+        this.#brickManager.touchBrickAt(this.x, this.y, this.z);
+       
         playSound(getRandomInt(1) + SoundsFX.BRICK1);
       }
 
@@ -465,18 +466,21 @@ class BrickObj extends Entity {
 
   type = 0;
   bAlive = true;
+  life = 1;
   #explosionParticleSystem
 
-  constructor(index, type, x, y, z, model, parent) {
+  constructor(index, brickTypeObj, x, y, z, parent) {
     super(x, y, z);
-    this.type = Scalar.Clamp(Math.floor(type), -1, 6);
 
-    if (this.type < 0 || model == null) {
+
+    if (brickTypeObj == null) {
       this.bAlive = false;
     }
     else {
+      this.type = Scalar.Clamp(Math.floor(brickTypeObj.type), 0, 6);
+      this.life = brickTypeObj.life;
       // Our built-in 'sphere' shape.
-      this.gameObject = model.createInstance(`brick${index}`);
+      this.gameObject = brickTypeObj.model.createInstance(`brick${index}`);
       this.gameObject.setParent(parent);
       //this.gameObject.receiveShadows = true;
       shadowGenerator.addShadowCaster(this.gameObject, true);
@@ -495,6 +499,22 @@ class BrickObj extends Entity {
 
   setVisible(bVisible) {
     this.gameObject.setEnabled(bVisible);
+  }
+
+  /**
+   * 
+   * @returns true if brick is destroyed
+   */
+  touch() {
+    if (this.bAlive) {
+      if (this.life > 0)
+      {
+        this.life--;
+        if (this.life == 0)
+          return true;
+        }
+    }
+    return false;
   }
 
   explode() {
@@ -528,41 +548,49 @@ class BrickManager {
         model: MeshBuilder.CreateBox(`brick0`, options),
         color: new Color3(0.0, 1, 0.0),
         material: new StandardMaterial("brickMat0"),
+        life: 1,
       },
       {
         model: MeshBuilder.CreateBox(`brick1`, options),
         color: new Color3(0.1, 0.0, 1.0),
         material: new StandardMaterial("brickMat1"),
+        life: 1,
       },
       {
         model: MeshBuilder.CreateBox(`brick2`, options),
         color: new Color3(0.0, 0.0, 1),
         material: new StandardMaterial("brickMat2"),
+        life: 1,
       },
       {
         model: MeshBuilder.CreateBox(`brick3`, options),
         color: new Color3(0.0, 1, 1),
         material: new StandardMaterial("brickMat3"),
+        life: 1,
       },
       {
         model: MeshBuilder.CreateBox(`brick4`, options),
         color: new Color3(1, 0.0, 0.0),
         material: new StandardMaterial("brickMat4"),
+        life: 1,
       },
       {
         model: MeshBuilder.CreateBox(`brick5`, options),
         color: new Color3(0.25, 0.25, 0.25),
         material: new StandardMaterial("brickMat5"),
+        life: 2,
       },
       {
         model: MeshBuilder.CreateBox(`brick6`, options),
         color: new Color3(1, 1, 1),
         material: new StandardMaterial("brickMat6"),
+        life: 1,
       },
       {
         model: MeshBuilder.CreateBox(`brick7`, options),
         color: new Color3(1, 0.5, 0),
         material: new StandardMaterial("brickMat6"),
+        life: 1,
       }
     ];
 
@@ -627,7 +655,7 @@ class BrickManager {
         let z = j * brickHeight;
         let car = currentLevelMatrix[(bricksRows-1)-j].charAt(i);
         if (car === " ") {
-          let uneBrique = new BrickObj(index, -1, x, y, z, null, this.#parent);
+          let uneBrique = new BrickObj(index, null, x, y, z, this.#parent);
           this.#bricks[index] = uneBrique;
           this.#bricks[index].bAlive = false;
         }
@@ -640,8 +668,8 @@ class BrickManager {
             type = 0;
           }
   
-          let model = bricksType[type].model;
-          let uneBrique = new BrickObj(index, type, x, y, z, model, this.#parent);
+
+          let uneBrique = new BrickObj(index, bricksType[type], x, y, z, this.#parent);
   
   
           this.#bricks[index] = uneBrique;
@@ -707,30 +735,22 @@ class BrickManager {
     return false;
   }
 
-  destroyBrickAt(x, y, z) {
+  touchBrickAt(x, y, z) {
     let xpos = Math.floor((x + brickWidth / 2) / brickWidth);
     let zpos = Math.floor((z + brickHeight / 2) / brickHeight);
     let index = zpos * bricksCols + xpos;
     if (index >= 0 && index < this.#bricks.length && this.#bricks[index].bAlive) {
-      this.#bricks[index].bAlive = false;
 
-      this.#bricks[index].setVisible(false);
-      this.#bricks[index].explode();
-      this.#iLiveBricks--;
+      if (this.#bricks[index].touch()) {
 
-      //var that = this.#bricks[index];
+        this.#bricks[index].bAlive = false;
+  
+        this.#bricks[index].setVisible(false);
+        this.#bricks[index].explode();
+        this.#iLiveBricks--;
+        currentScore += 10 * (this.#bricks[index].type + 1);
+      }
 
-      /*ParticleHelper.CreateAsync("explosion").then((set) => {
-
-        set.systems.forEach(s => {
-            s.disposeOnStop = true;
-            s.worldOffset = new Vector3(that.x, that.y, that.z);
-          
-        });
-        set.start();
-    });*/
-
-      currentScore += 10 * (this.#bricks[index].type + 1);
     }
 
   }
@@ -843,8 +863,8 @@ class BreackOut {
     var pipeline = new DefaultRenderingPipeline("default", true, this.#scene, [this.#camera]);
 
     pipeline.glowLayerEnabled = true;
-    pipeline.glowLayer.intensity = 0.45;
-    pipeline.glowLayer.blurKernelSize = 22;
+    pipeline.glowLayer.intensity = 0.35;
+    pipeline.glowLayer.blurKernelSize = 16;
     pipeline.glowLayer.ldrMerge = true;
     
 
