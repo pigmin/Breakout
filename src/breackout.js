@@ -47,7 +47,7 @@ import looseSoundUrl from "../assets/sounds/Arkanoid SFX (2).wav";
 import roomModelUrl from "../assets/models/secret_area-52__room.glb";
 
 import flareParticleTextureUrl from "../assets/particles/textures/Flare.png";
-import { AdvancedDynamicTexture, Button } from "@babylonjs/gui";
+import { AdvancedDynamicTexture, Button, Control, TextBlock } from "@babylonjs/gui";
 
 const bricksRows = 7;
 const bricksCols = 13;
@@ -712,7 +712,8 @@ class BreackOut {
   #inputController;
 
   #myMeshes = [];
-  #guiTexture;
+  #menuUiTexture;
+  #gameUI;
 
   #cameraStartPosition = new Vector3(-257, 566, -620);
   #cameraMenuPosition = new Vector3(-199, 88, -360);
@@ -727,7 +728,8 @@ class BreackOut {
 
   async start() {
     await this.init();
-    await this.loadGUI();
+    this.loadMenuGUI();
+    this.loadGameUI();
     this.loop();
     this.end();
   }
@@ -1130,7 +1132,8 @@ this.#ground.material = groundMaterial;
         //this.#camera.setTarget(this.#cameraGameTarget);
         changeGameState(States.STATE_INTRO);
         this.launchGameStartAnimation(() => {
-          changeGameState(States.STATE_LAUNCH);
+          this.showGameUI(true);
+          changeGameState(States.STATE_START_GAME);
         });
       }
       else if (gameState == States.STATE_INTRO) {
@@ -1147,12 +1150,14 @@ this.#ground.material = groundMaterial;
       else if (gameState == States.STATE_LOOSE) {
         if (nbLives > 0) {
           nbLives--;
+          this.updateTextLives();
           this.#ball.reset();
           this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
           changeGameState(States.STATE_RUNNING);
         }
         else {
           this.resetGame();
+          this.showGameUI(false);
           changeGameState(States.STATE_GAME_OVER);
         }
       }
@@ -1214,6 +1219,7 @@ this.#ground.material = groundMaterial;
     this.#ball.reset();
     //this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
     nbLives = START_LIVES;    
+    this.updateTextLives();
   }
 
   end() { }
@@ -1329,10 +1335,10 @@ this.#ground.material = groundMaterial;
   showGUI() {
     // GUI
 
-    this.#guiTexture.rootContainer.isVisible = true;
+    this.#menuUiTexture.rootContainer.isVisible = true;
   }
   hideGUI() {
-    this.#guiTexture.rootContainer.isVisible = false;
+    this.#menuUiTexture.rootContainer.isVisible = false;
   }
   gotoMenuCamera() {
     this.#camera.position = this.#cameraMenuPosition.clone();
@@ -1348,7 +1354,7 @@ this.#ground.material = groundMaterial;
     this.#camera.setTarget(this.#cameraGameTarget);
   }
 
-  async loadGUI() {
+  loadMenuGUI() {
     // GUI
     let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget);
     this.#camera.setTarget(guiParent.getAbsolutePosition());
@@ -1359,7 +1365,7 @@ this.#ground.material = groundMaterial;
     startGameButton.rotation.x = Math.PI / 8;
     startGameButton.rotation.y = -Math.PI / 2;
 
-    this.#guiTexture = AdvancedDynamicTexture.CreateForMesh(startGameButton);
+    this.#menuUiTexture = AdvancedDynamicTexture.CreateForMesh(startGameButton);
 
     var button1 = Button.CreateSimpleButton("but1", "START");
     button1.width = 0.2;
@@ -1372,11 +1378,64 @@ this.#ground.material = groundMaterial;
         //this.hideGUI();
         changeGameState(States.STATE_START_INTRO);
     });
-    this.#guiTexture.addControl(button1);
+    this.#menuUiTexture.addControl(button1);
     this.gotoMenuCamera();
     this.showGUI();
 
   }
+
+  loadGameUI() {
+    this.textScale = 1;
+    let fontSize = 22 * this.textScale;
+    let spacing = 150 * this.textScale;
+
+    this.#gameUI = AdvancedDynamicTexture.CreateFullscreenUI("gameUI");
+
+    // Lives
+    this.textLives = new TextBlock("Score");
+    this.textLives.color = "white";
+    this.textLives.fontSize = fontSize;
+    
+    //this.textLives.fontFamily = '"Press Start 2P"';
+    this.textLives.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.textLives.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    this.textLives.left = 40;
+    this.textLives.top = 40;
+    this.#gameUI.addControl(this.textLives);
+    this.showGameUI(false);
+    this.updateTextLives();
+    window.onresize = () => {
+      this.getCanvasSize();
+      this.fixTextScale();
+    }    
+  }
+  showGameUI(bActive) {
+    this.#gameUI.rootContainer.isVisible = bActive;
+  }
+  updateTextLives() {
+    this.textLives.text = `Vies : ${nbLives}`;
+  }
+
+  
+  getCanvasSize() {
+    this.canvasWidth = document.querySelector("canvas").width;
+    this.canvasHeight = document.querySelector("canvas").height;
+  }
+
+  fixTextScale() {
+    this.textScale = Math.min(1, this.canvasWidth / 1280);
+    let fontSize = 22 * this.textScale;
+    let spacing = 150 * this.textScale;
+    this.textLives.fontSize = fontSize;
+    this.textLives.left = spacing;
+    /*    this.textScore.fontSize = fontSize;
+    this.textLevel.fontSize = fontSize;
+    this.textHigh.fontSize = fontSize;
+    this.textScore.left = -spacing * 3;
+    this.textLevel.left = -spacing;
+    this.textHigh.left = spacing * 3;
+  */  }
+
 }
 
 class InputController {
