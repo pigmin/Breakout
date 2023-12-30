@@ -11,7 +11,7 @@
     "strictFunctionTypes": true,
     "preserveConstEnums":true,
     "sourceMap": true,
-    "rootDir": "./src",
+    "rootDir": "./",
     "esModuleInterop": true,
     },
     "exclude": ["node_modules", "**/node_modules/*", "dist"]

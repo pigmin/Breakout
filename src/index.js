@@ -16,7 +16,7 @@ window.addEventListener("resize", function () {
     engine.resize();
 });
 
-const game = new BreackOut(canvas, engine);
+const game = window.game = new BreackOut(canvas, engine);
 game.start();
 
 

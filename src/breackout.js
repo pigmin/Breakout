@@ -4,13 +4,13 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { UniversalCamera, MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, MeshExploder, ParticleHelper, SolidParticleSystem, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, SpotLight, Sound, Animation } from "@babylonjs/core";
-import { PhysicsShapeType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
+import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera } from "@babylonjs/core";
+import { PhysicsShapeType, PhysicsMotionType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 
 import { PhysicsBody } from "@babylonjs/core/Physics/v2/physicsBody";
 import { PhysicsAggregate } from "@babylonjs/core/Physics/v2/physicsAggregate";
 
-import { PhysicsMotionType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
+
 import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
 import { Inspector } from '@babylonjs/inspector';
 import { TrailMesh } from '@babylonjs/core/Meshes/trailMesh';
@@ -21,8 +21,6 @@ import "@babylonjs/core/Materials/standardMaterial";
 import "@babylonjs/core/Debug/debugLayer"; // Augments the scene with the debug methods
 import "@babylonjs/inspector"; // Injects a local ES6 version of the inspector to prevent automatically relying on the none compatible version
 import "@babylonjs/loaders/glTF";
-
-import heightMapUrl from "../assets/textures/heightMap.png";
 
 
 import wallBaseColorUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_basecolor.jpg";
@@ -49,6 +47,7 @@ import looseSoundUrl from "../assets/sounds/Arkanoid SFX (2).wav";
 import roomModelUrl from "../assets/models/secret_area-52__room.glb";
 
 import flareParticleTextureUrl from "../assets/particles/textures/Flare.png";
+import { AdvancedDynamicTexture, Button } from "@babylonjs/gui";
 
 const bricksRows = 7;
 const bricksCols = 13;
@@ -87,6 +86,9 @@ const WORLD_MAX_Z = profondeur;
 const BALL_LAUNCH_VX = 0.15;
 const BALL_LAUNCH_VZ = 0.5;
 
+const StartButtonMeshTarget = "Cube.061_177";
+//const StartButtonMeshTarget = "panel_plate.001_140";
+
 var debugMaterial;
 var debugBox;
 var explosionParticleSystem;
@@ -98,10 +100,10 @@ function changeGameState(newState) {
 }
 
 let SoundsFX = Object.freeze({
-  BRICK1 : 0,
-  BRICK2 : 1,
-  PADDLE : 2,
-  LOOSE : 3,
+  BRICK1: 0,
+  BRICK2: 1,
+  PADDLE: 2,
+  LOOSE: 3,
 })
 
 let soundsRepo = [];
@@ -343,14 +345,12 @@ class Ball extends Entity {
     this.applyVelocities();
 
     //Walls collisions
-    if ((this.x > WORLD_MAX_X) || (this.x < WORLD_MIN_X))
-    {
+    if ((this.x > WORLD_MAX_X) || (this.x < WORLD_MIN_X)) {
       this.vx = -this.vx;
       //playSound(SoundsFX.BOING);
     }
 
-    if ((this.y > WORLD_MAX_Y) || (this.y < WORLD_MIN_Y))
-    {
+    if ((this.y > WORLD_MAX_Y) || (this.y < WORLD_MIN_Y)) {
       this.vy = -this.vy;
       //playSound(SoundsFX.BOING);
     }
@@ -384,19 +384,17 @@ class Ball extends Entity {
         let prevBrickCol = this.#brickManager.getBrickCol(this.prevX);
         let prevBrickRow = this.#brickManager.getBrickRow(this.prevZ);
 
-        if (prevBrickCol != brickCol)
-        {
+        if (prevBrickCol != brickCol) {
           let brickAtXminus = this.#brickManager.getBrickAtRowCol(prevBrickCol, brickRow);
-  
+
           if (!brickAtXminus) {
             this.vx = -this.vx;
             bBothTestFailed = false;
           }
         }
-        if (prevBrickRow != brickRow)
-        {
+        if (prevBrickRow != brickRow) {
           let brickAtZminus = this.#brickManager.getBrickAtRowCol(brickCol, prevBrickRow);
-  
+
           if (!brickAtZminus) {
             this.vz = -this.vz;
             bBothTestFailed = false;
@@ -645,7 +643,7 @@ class BrickManager {
       this.#bricks[index].explode();
       this.#iLiveBricks--;
 
-      var that = this.#bricks[index];
+      //var that = this.#bricks[index];
 
       /*ParticleHelper.CreateAsync("explosion").then((set) => {
 
@@ -662,17 +660,8 @@ class BrickManager {
   }
 
   draw() {
-    for (let j = 0; j < bricksRows; j++) {
-      for (let i = 0; i < bricksCols; i++) {
-        let index = j * bricksCols + i;
-        let brickAt = this.#bricks[index];
-        if (brickAt.type == 1) {
-          let x = brickAt.x;
-          let y = brickAt.y;
-          let z = brickAt.z;
-        }
-      }
-    }
+
+
   }
 
 
@@ -682,7 +671,10 @@ const States = Object.freeze({
   STATE_NONE: 0,
   STATE_INIT: 10,
   STATE_LOADING: 20,
+  STATE_MENU: 25,
+  STATE_START_INTRO: 28,
   STATE_INTRO: 30,
+  STATE_START_GAME: 35,
   STATE_LAUNCH: 40,
   STATE_RUNNING: 50,
   STATE_LOOSE: 55,
@@ -701,6 +693,7 @@ class BreackOut {
   #light;
   #shadowGenerator;
   #hightLightLayer;
+  #music;
 
   #ground;
   #skySphere;
@@ -714,9 +707,13 @@ class BreackOut {
   #inputController;
 
   #myMeshes = [];
-  
+  #guiTexture;
 
+  #cameraStartPosition = new Vector3(-257, 566, -620);
+  #cameraMenuPosition = new Vector3(-103, 21, -3);
 
+  #cameraGamePosition = new Vector3(39, 75, -57);
+  #cameraGameTarget = new Vector3((bricksCols * brickWidth) / 2, 0, -20);
 
   constructor(canvas, engine) {
     this.#canvas = canvas;
@@ -725,6 +722,7 @@ class BreackOut {
 
   async start() {
     await this.init();
+    await this.loadGUI();
     this.loop();
     this.end();
   }
@@ -746,14 +744,20 @@ class BreackOut {
       new Vector3((bricksCols * brickWidth) / 2, 60, -65),
       this.#scene
     );*/
-    this.#camera = new ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 3, 10, new Vector3(-257, 566, -620), this.#scene);
-
-
+    this.#camera = new ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 3, 10, this.#cameraMenuPosition, this.#scene);
+  /*  this.#camera  = new FlyCamera(
+      "FlyCamera",
+      new Vector3(0, 5, -50),
+      this.#scene
+    );
+*/
     // This targets the camera to scene origin
     this.#camera.setTarget(new Vector3((bricksCols * brickWidth) / 2, 0, -20));
 
     // This attaches the camera to the canvas
     //this.#camera.attachControl(this.#canvas, true);
+
+
 
     // Set up new rendering pipeline
     var pipeline = new DefaultRenderingPipeline("default", true, this.#scene, [this.#camera]);
@@ -841,21 +845,19 @@ this.#ground.material = groundMaterial;
     skyMaterial.lineColor = new Color3(0, 1.0, 1.0);
     skyMaterial.backFaceCulling = false;
 
-    let music = new Sound("music", musicUrl, this.#scene, null, { loop: true, autoplay: true });
+    this.#music = new Sound("music", musicUrl, this.#scene, null, { loop: true, autoplay: true });
 
-    /*    this.#skySphere = MeshBuilder.CreateSphere("skySphere", {diameter : 300, segments: 32}, this.#scene);
-        this.#skySphere.material = skyMaterial;
-    */
+    this.#skySphere = MeshBuilder.CreateSphere("skySphere", { diameter: 3000, segments: 32 }, this.#scene);
+    this.#skySphere.material = skyMaterial;
+
     this.#inputController = new InputController(this.#scene);
     this.#brickManager = new BrickManager(this.#scene);
     this.#paddle = new Paddle(largeur / 2, 0, baseZPaddle, this.#inputController);
     this.#ball = new Ball(this.#paddle.x, 0, baseZBall, this.#brickManager, this.#paddle);
 
 
-    changeGameState(States.STATE_INTRO);
-    this.launchCameraAnimation(() => {
-      changeGameState(States.STATE_LAUNCH);
-    });
+    changeGameState(States.STATE_MENU);
+
   }
 
 
@@ -879,7 +881,7 @@ this.#ground.material = groundMaterial;
 
     keys.push({
       frame: startFrame,
-      value: this.#camera.position.clone(),
+      value: this.#cameraStartPosition,
       // outTangent: new Vector3(1, 0, 0)
     });
 
@@ -909,13 +911,13 @@ this.#ground.material = groundMaterial;
       this.#assetsManager = new AssetsManager(this.#scene);
       const particleTexture = this.#assetsManager.addTextureTask("explosion texture", particleExplosionTextureUrl)
       const particleExplosion = this.#assetsManager.addTextFileTask("explosion", particleExplosionUrl);
-//      const boingSoundData = this.#assetsManager.addBinaryFileTask("boingSound", boingSoundUrl);
+      //      const boingSoundData = this.#assetsManager.addBinaryFileTask("boingSound", boingSoundUrl);
       const brickTouchedSoundData1 = this.#assetsManager.addBinaryFileTask("brickTouchedSound1", brickTouchedSoundUrl1);
       const brickTouchedSoundData2 = this.#assetsManager.addBinaryFileTask("brickTouchedSound2", brickTouchedSoundUrl2);
       const paddleTouchedSoundData = this.#assetsManager.addBinaryFileTask("paddleTouchedSound", paddleTouchedSoundUrl);
       const looseSoundData = this.#assetsManager.addBinaryFileTask("looseSound", looseSoundUrl);
-      
-      
+
+
       this.LoadEntity(
         "room",
         "",
@@ -965,8 +967,24 @@ this.#ground.material = groundMaterial;
 
       this.#inputController.update();
 
-      if (gameState == States.STATE_INTRO) {
+      if (gameState == States.STATE_MENU) {
+
+
+
+      }
+      else if (gameState == States.STATE_START_INTRO) {
+        this.#camera.setTarget(this.#cameraGameTarget);
+        changeGameState(States.STATE_INTRO);
+        this.launchCameraAnimation(() => {
+          changeGameState(States.STATE_LAUNCH);
+        });
+      }
+      else if (gameState == States.STATE_INTRO) {
         //RAS
+      }
+      else if (gameState == States.STATE_START_GAME) {
+        Engine.audioEngine.unlock();
+        changeGameState(States.STATE_LAUNCH);
       }
       else if (gameState == States.STATE_LAUNCH) {
         this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
@@ -976,7 +994,7 @@ this.#ground.material = groundMaterial;
         this.#ball.reset();
         this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
         changeGameState(States.STATE_RUNNING);
-      }      
+      }
       else if (gameState == States.STATE_RUNNING) {
 
         //Update paddle
@@ -1004,10 +1022,13 @@ this.#ground.material = groundMaterial;
           debugBox.setEnabled(true);
           Inspector.Show(this.#scene, { embedMode: true });
           console.log(this.#camera);
+          this.#camera.attachControl(this.#canvas, true);
+
         }
         else {
           debugBox.setEnabled(false);
           Inspector.Hide();
+          this.#camera.detachControl();
         }
       }
 
@@ -1069,11 +1090,11 @@ this.#ground.material = groundMaterial;
     lWall.material = wallMaterial;
     tWall.material = wallMaterial;
     rWall.material = wallMaterial;
-/*
-    this.#hightLightLayer.addMesh(lWall, new Color3(0.35, 0.35, 0.7));
-    this.#hightLightLayer.addMesh(tWall, new Color3(0.35, 0.35, 0.7));
-    this.#hightLightLayer.addMesh(rWall, new Color3(0.35, 0.35, 0.7));
-*/
+    /*
+        this.#hightLightLayer.addMesh(lWall, new Color3(0.35, 0.35, 0.7));
+        this.#hightLightLayer.addMesh(tWall, new Color3(0.35, 0.35, 0.7));
+        this.#hightLightLayer.addMesh(rWall, new Color3(0.35, 0.35, 0.7));
+    */
   }
 
   LoadEntity(
@@ -1129,6 +1150,53 @@ this.#ground.material = groundMaterial;
       console.log(e);
     };
   }
+
+  showGUI() {
+    // GUI
+    
+    this.#guiTexture.rootContainer.isVisible = true;
+  }
+  hideGUI() {
+    this.#guiTexture.rootContainer.isVisible = false;
+  }
+  gotoMenuCamera() {
+    let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget); 
+    this.#camera.position = this.#cameraMenuPosition;
+    this.#camera.setTarget(guiParent.getAbsolutePosition());       
+  }
+
+  gotoGameCamera() {
+    this.#camera.position = this.#cameraGamePosition;
+    this.#camera.setTarget(this.#cameraGameTarget);
+  }
+
+  async loadGUI() {
+        // GUI
+        let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget); 
+        this.#camera.setTarget(guiParent.getAbsolutePosition());
+
+        var startGameButton = MeshBuilder.CreateBox("startGameButton", {size:20});
+
+        startGameButton.position = guiParent.getAbsolutePosition();
+        startGameButton.rotation.x = -Math.PI/2;
+
+    this.#guiTexture = AdvancedDynamicTexture.CreateForMesh(startGameButton);
+
+    var button1 = Button.CreateSimpleButton("but1", "START");
+    button1.width = 5;
+    button1.height = 5;
+    button1.color = "white";
+    button1.fontSize = 50;
+    button1.background = "";
+    button1.onPointerUpObservable.add(() => {
+        this.hideGUI();
+        changeGameState(States.STATE_START_INTRO);
+    });
+    this.#guiTexture.addControl(button1);
+    this.gotoMenuCamera();
+    this.showGUI();
+
+  }
 }
 
 class InputController {
@@ -1164,5 +1232,6 @@ class InputController {
 
   }
 }
+
 
 export default BreackOut;
