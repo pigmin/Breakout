@@ -1,7 +1,7 @@
 //13 * 16
 // Space equals empty
 // Number equals type of brick 0 to 6
-const level1 = [ 
+const level2 = [ 
     "             ",
     "6            ",
     "65           ",
@@ -20,7 +20,7 @@ const level1 = [
     "             ",
 ];
 
-const level2 = [ 
+const level1 = [ 
     "             ",
     "             ",
     "             ",

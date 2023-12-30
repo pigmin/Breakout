@@ -477,8 +477,9 @@ class BrickObj extends Entity {
       this.bAlive = false;
     }
     else {
-      this.type = Scalar.Clamp(Math.floor(brickTypeObj.type), 0, 6);
+      this.type = Scalar.Clamp(Math.round(brickTypeObj.type), 0, (bricksType.length-1));
       this.life = brickTypeObj.life;
+      this.score = brickTypeObj.score;
       // Our built-in 'sphere' shape.
       this.gameObject = brickTypeObj.model.createInstance(`brick${index}`);
       this.gameObject.setParent(parent);
@@ -549,48 +550,56 @@ class BrickManager {
         color: new Color3(0.0, 1, 0.0),
         material: new StandardMaterial("brickMat0"),
         life: 1,
+        score : 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick1`, options),
         color: new Color3(0.1, 0.0, 1.0),
         material: new StandardMaterial("brickMat1"),
         life: 1,
+        score : 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick2`, options),
         color: new Color3(0.0, 0.0, 1),
         material: new StandardMaterial("brickMat2"),
         life: 1,
+        score : 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick3`, options),
         color: new Color3(0.0, 1, 1),
         material: new StandardMaterial("brickMat3"),
         life: 1,
+        score : 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick4`, options),
         color: new Color3(1, 0.0, 0.0),
         material: new StandardMaterial("brickMat4"),
         life: 1,
+        score : 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick5`, options),
         color: new Color3(0.25, 0.25, 0.25),
         material: new StandardMaterial("brickMat5"),
         life: 2,
+        score : 20,
       },
       {
         model: MeshBuilder.CreateBox(`brick6`, options),
         color: new Color3(1, 1, 1),
         material: new StandardMaterial("brickMat6"),
         life: 1,
+        score : 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick7`, options),
         color: new Color3(1, 0.5, 0),
         material: new StandardMaterial("brickMat6"),
         life: 1,
+        score : 10,
       }
     ];
 
@@ -748,7 +757,7 @@ class BrickManager {
         this.#bricks[index].setVisible(false);
         this.#bricks[index].explode();
         this.#iLiveBricks--;
-        currentScore += 10 * (this.#bricks[index].type + 1);
+        currentScore += 10 * (this.#bricks[index].score + 1);
       }
 
     }
