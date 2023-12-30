@@ -89,12 +89,16 @@ const BALL_LAUNCH_VZ = 0.5;
 const StartButtonMeshTarget = "Object_351";
 //const StartButtonMeshTarget = "panel_plate.001_140";
 
-var debugMaterial;
-var debugBox;
-var explosionParticleSystem;
-var shadowGenerator;
+let debugMaterial;
+let debugBox;
+let explosionParticleSystem;
+let shadowGenerator;
 
-var gameState;
+const START_LIVES = 3;
+const MAX_LIVES = 5;
+let nbLives = START_LIVES;
+
+let gameState;
 function changeGameState(newState) {
   gameState = newState;
 }
@@ -168,22 +172,22 @@ class Paddle extends Entity {
     this.gameObject = new MeshBuilder.CreateCapsule("capsule", { radius: paddleRadius, capSubdivisions: 6, subdivisions: 6, tessellation: 36, height: paddleWidth, orientation: Vector3.Left() });
     shadowGenerator.addShadowCaster(this.gameObject);
 
-    var trailMaterial = new StandardMaterial('reactMat');
-    var color = new Color3(0.2, 0.4, 1);
+    let trailMaterial = new StandardMaterial('reactMat');
+    let color = new Color3(0.2, 0.4, 1);
 
     trailMaterial.emissiveColor = color;
     trailMaterial.diffuseColor = color;
     trailMaterial.specularColor = new Color3(1, 1, 1);
 
 
-    var lReact = new MeshBuilder.CreateCylinder("lReact", { height: paddleRadius + 0.2, diameter: paddleRadius * 3.0 });
+    let lReact = new MeshBuilder.CreateCylinder("lReact", { height: paddleRadius + 0.2, diameter: paddleRadius * 3.0 });
     lReact.position.x = -paddleWidth / 3;
     lReact.rotation.z = -Math.PI / 2;
 
     lReact.material = trailMaterial;
     lReact.setParent(this.gameObject);
 
-    var rReact = new MeshBuilder.CreateCylinder("rReact", { height: paddleRadius + 0.2, diameter: paddleRadius * 3.0 });
+    let rReact = new MeshBuilder.CreateCylinder("rReact", { height: paddleRadius + 0.2, diameter: paddleRadius * 3.0 });
     rReact.position.x = paddleWidth / 3;
     rReact.rotation.z = -Math.PI / 2;
     rReact.material = trailMaterial;
@@ -746,12 +750,12 @@ class BreackOut {
       this.#scene
     );*/
     this.#camera = new ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 3, 10, this.#cameraMenuPosition, this.#scene);
-  /*  this.#camera  = new FlyCamera(
-      "FlyCamera",
-      new Vector3(0, 5, -50),
-      this.#scene
-    );
-*/
+    /*  this.#camera  = new FlyCamera(
+        "FlyCamera",
+        new Vector3(0, 5, -50),
+        this.#scene
+      );
+  */
     // This targets the camera to scene origin
     this.gotoMenuCamera();
     // This attaches the camera to the canvas
@@ -864,6 +868,63 @@ this.#ground.material = groundMaterial;
 
   }
 
+  launchGameOverAnimation(callback) {
+
+    const startFrame = 0;
+    const endFrame = 400;
+    const frameRate = 60;
+
+    var animationcamera = new Animation(
+      "GameOverAnimation",
+      "position",
+      frameRate,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+    var keys = [];
+    keys.push({
+      frame: startFrame,
+      value: this.#camera.position.clone(),
+      // outTangent: new Vector3(1, 0, 0)
+    });
+    keys.push({
+      frame: endFrame / 2,
+      value: new Vector3(39, 177, -550),
+    });
+    keys.push({
+      frame: endFrame,
+      // inTangent: new Vector3(-1, 0, 0),
+      value: this.#cameraMenuPosition,
+    });
+    animationcamera.setKeys(keys);
+
+    //------------------TARGET
+    var animationcameraTarget = new Animation(
+      "GameOverAnimationTarget",
+      "target",
+      frameRate,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+    var keysTarget = [];
+    keysTarget.push({
+      frame: startFrame,
+      value: this.#camera.target.clone(),
+      // outTangent: new Vector3(1, 0, 0)
+    });
+    keysTarget.push({
+      frame: endFrame,
+      // inTangent: new Vector3(-1, 0, 0),
+      value: this.getTargetMenuPosition().clone(),
+    });
+    animationcameraTarget.setKeys(keysTarget);
+
+    this.#camera.animations = [];
+    this.#camera.animations.push(animationcamera);
+    this.#camera.animations.push(animationcameraTarget);
+
+    this.#scene.beginAnimation(this.#camera, startFrame, endFrame, false, 1, callback);
+  }
 
   launchGameStartAnimation(callback) {
 
@@ -894,16 +955,16 @@ this.#ground.material = groundMaterial;
       value: this.#cameraGamePosition,
     });
     animationcamera.setKeys(keys);
-    
+
     //------------------TARGET
     var animationcameraTarget = new Animation(
-      "PreIntroAnimationTarget",
+      "GameStartAnimationTarget",
       "target",
       frameRate,
       Animation.ANIMATIONTYPE_VECTOR3,
       Animation.ANIMATIONLOOPMODE_CONSTANT
     );
-        var keysTarget = [];
+    var keysTarget = [];
     keysTarget.push({
       frame: startFrame,
       value: this.#camera.target.clone(),
@@ -916,7 +977,7 @@ this.#ground.material = groundMaterial;
     });
 
     animationcameraTarget.setKeys(keysTarget);
-    
+
 
 
     this.#camera.animations = [];
@@ -942,34 +1003,49 @@ this.#ground.material = groundMaterial;
 
     // console.log(animationcamera);
     var keys = [];
-
     keys.push({
       frame: startFrame,
       value: this.#cameraStartPosition,
       // outTangent: new Vector3(1, 0, 0)
     });
-
     keys.push({
       frame: endFrame / 3,
       value: new Vector3(39, 177, -550),
     });
-    
     keys.push({
-      frame: 2*endFrame / 3,
+      frame: 2 * endFrame / 3,
       // inTangent: new Vector3(-1, 0, 0),
       value: new Vector3(240, 107, -353),
     });
-
-
     keys.push({
       frame: endFrame,
       // inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraMenuPosition,
     });
-
     animationcamera.setKeys(keys);
 
-  
+    //------------------TARGET
+    var animationcameraTarget = new Animation(
+      "PreIntroAnimationTarget",
+      "target",
+      frameRate,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+    var keysTarget = [];
+    keysTarget.push({
+      frame: startFrame,
+      value: this.#camera.target.clone(),
+      // outTangent: new Vector3(1, 0, 0)
+    });
+    keysTarget.push({
+      frame: endFrame,
+      // inTangent: new Vector3(-1, 0, 0),
+      value: this.getTargetMenuPosition().clone(),
+    });
+
+    animationcameraTarget.setKeys(keysTarget);
+
 
     this.#camera.animations = [];
     this.#camera.animations.push(animationcamera);
@@ -1069,9 +1145,21 @@ this.#ground.material = groundMaterial;
         changeGameState(States.STATE_RUNNING);
       }
       else if (gameState == States.STATE_LOOSE) {
-        this.#ball.reset();
-        this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
-        changeGameState(States.STATE_RUNNING);
+        if (nbLives > 0) {
+          nbLives--;
+          this.#ball.reset();
+          this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          changeGameState(States.STATE_RUNNING);
+        }
+        else {
+          this.resetGame();
+          changeGameState(States.STATE_GAME_OVER);
+        }
+      }
+      else if (gameState == States.STATE_GAME_OVER) {
+        this.launchGameOverAnimation(() => {
+          changeGameState(States.STATE_MENU);
+        });
       }
       else if (gameState == States.STATE_RUNNING) {
 
@@ -1119,6 +1207,13 @@ this.#ground.material = groundMaterial;
 
 
     });
+  }
+
+  resetGame() {
+    this.#brickManager.reset();
+    this.#ball.reset();
+    //this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+    nbLives = START_LIVES;    
   }
 
   end() { }
@@ -1233,16 +1328,19 @@ this.#ground.material = groundMaterial;
 
   showGUI() {
     // GUI
-    
+
     this.#guiTexture.rootContainer.isVisible = true;
   }
   hideGUI() {
     this.#guiTexture.rootContainer.isVisible = false;
   }
   gotoMenuCamera() {
-    let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget); 
     this.#camera.position = this.#cameraMenuPosition.clone();
-    this.#camera.setTarget(guiParent.getAbsolutePosition());       
+    this.#camera.setTarget(this.getTargetMenuPosition());
+  }
+  getTargetMenuPosition() {
+    let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget);
+    return guiParent.getAbsolutePosition();
   }
 
   gotoGameCamera() {
@@ -1251,17 +1349,15 @@ this.#ground.material = groundMaterial;
   }
 
   async loadGUI() {
-        // GUI
-        let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget); 
-        this.#camera.setTarget(guiParent.getAbsolutePosition());
+    // GUI
+    let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget);
+    this.#camera.setTarget(guiParent.getAbsolutePosition());
 
-        var parentPos = guiParent.getAbsolutePosition();
-
-        var startGameButton = MeshBuilder.CreatePlane("startGameButton", {width:10, depth: 10});
-        startGameButton.scaling = new Vector3(3.5, 20, 10);
-        startGameButton.position =  new Vector3(-259, 87, -361.3);
-        startGameButton.rotation.x = Math.PI/8;
-        startGameButton.rotation.y = -Math.PI/2;
+    var startGameButton = MeshBuilder.CreatePlane("startGameButton", { width: 10, depth: 10 });
+    startGameButton.scaling = new Vector3(3.5, 20, 10);
+    startGameButton.position = new Vector3(-259, 87, -361.3);
+    startGameButton.rotation.x = Math.PI / 8;
+    startGameButton.rotation.y = -Math.PI / 2;
 
     this.#guiTexture = AdvancedDynamicTexture.CreateForMesh(startGameButton);
 
@@ -1272,7 +1368,8 @@ this.#ground.material = groundMaterial;
     button1.fontSize = 64;
     button1.background = "";
     button1.onPointerUpObservable.add(() => {
-        this.hideGUI();
+      if (gameState == States.STATE_MENU)
+        //this.hideGUI();
         changeGameState(States.STATE_START_INTRO);
     });
     this.#guiTexture.addControl(button1);
