@@ -4,7 +4,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera } from "@babylonjs/core";
+import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera, PrecisionDate } from "@babylonjs/core";
 import { PhysicsShapeType, PhysicsMotionType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
 
 import { PhysicsBody } from "@babylonjs/core/Physics/v2/physicsBody";
@@ -30,9 +30,10 @@ import wallAmbientUrl from "../assets/textures/Metal_Plate_011_SD/Metal_Plate_01
 import brickBaseColorUrl from "../assets/textures/Ice_001_COLOR.jpg";
 //import brickNormalUrl from "../assets/textures/Ice_001_NRM.jpg";
 
-/*import groundBaseColorUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_basecolor.jpg";
+import groundBaseColorUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_basecolor.jpg";
 import groundNormalUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_normal.jpg";
-*/
+import groundAmbientUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_ambientOcclusion.jpg";
+
 import particleExplosionUrl from "../assets/particles/systems/particleSystem.json"
 import particleExplosionTextureUrl from "../assets/particles/textures/dotParticle.png"
 
@@ -83,8 +84,8 @@ const baseZBall = -30;
 const ballRadius = 0.75;
 const paddleWidth = 9;
 const paddleRadius = 0.6;
-const baseZPaddle = baseZBall - paddleRadius*2 ;
-const offArea = baseZPaddle - paddleRadius*8;
+const baseZPaddle = baseZBall - paddleRadius * 2;
+const offArea = baseZPaddle - paddleRadius * 8;
 
 const WORLD_MIN_X = -brickWidth + (epaisseurWalls / 2) + ballRadius;
 const WORLD_MAX_X = (largeur) - (epaisseurWalls / 2) - ballRadius;
@@ -176,11 +177,11 @@ class Entity {
     this.prevZ = this.z;
 
     factor = factor || 1;
-  
+
     this.x = this.x + (this.vx * factor);
     this.y = this.y + (this.vy * factor);
     this.z = this.z + (this.vz * factor);
-    
+
   }
 
 }
@@ -313,11 +314,17 @@ class Ball extends Entity {
   #brickManager;
   #paddle;
   #trail;
+  #comboTouch;
+  #currentTurbo;
+  #lastDateTouch;
 
   constructor(x, y, z, brickManager, paddle) {
     super(x, y, z);
     this.#brickManager = brickManager;
     this.#paddle = paddle;
+    this.#comboTouch = 0;
+    this.#currentTurbo = 0;
+    this.#lastDateTouch = 0;
 
     var ballMaterial = new StandardMaterial("ballMaterial");
     ballMaterial.diffuseColor = new Color3(1, 1, 1);
@@ -352,6 +359,9 @@ class Ball extends Entity {
   }
 
   launch(vx, vy, vz) {
+    this.#comboTouch = 0;
+    this.#currentTurbo = 0;
+    this.#lastDateTouch = 0;
     this.vx = vx;
     this.vy = vy;
     this.vz = vz;
@@ -359,6 +369,9 @@ class Ball extends Entity {
   }
 
   reset() {
+    this.#comboTouch = 0;
+    this.#currentTurbo = 0;
+    this.#lastDateTouch = 0;
     this.x = this.#paddle.x;
     this.y = 0;
     this.z = baseZBall;
@@ -366,7 +379,7 @@ class Ball extends Entity {
 
   update() {
 
-    this.applyVelocities(BALL_SPEED_FACTOR);
+    this.applyVelocities(BALL_SPEED_FACTOR + this.#currentTurbo);
 
     //Walls collisions
     if ((this.x > WORLD_MAX_X) || (this.x < WORLD_MIN_X)) {
@@ -430,7 +443,17 @@ class Ball extends Entity {
 
 
         this.#brickManager.touchBrickAt(this.x, this.y, this.z);
-       
+        let currentDate = Date.now();
+        let delta = currentDate - this.#lastDateTouch;
+        this.#lastDateTouch = currentDate;
+        if (delta > 0 && delta < 2000) {
+          this.#comboTouch++;
+          this.#currentTurbo = Math.min(this.#comboTouch / 20, 3);
+        }
+        else
+          this.#comboTouch = 0;
+
+
         playSound(getRandomInt(1) + SoundsFX.BRICK1);
       }
 
@@ -451,6 +474,7 @@ class Ball extends Entity {
 
     let dz = Math.sqrt((this.z - this.#paddle.z) * (this.z - this.#paddle.z));
     if (this.isAlive && this.z < (this.#paddle.z + paddleRadius) && dz < 1 && (lx >= plx && rx <= prx)) {
+      this.#comboTouch = 0;
       this.vz = -this.vz;
       this.z = this.#paddle.z + paddleRadius;
       let distanceFromPaddle = this.x - this.#paddle.x;
@@ -479,7 +503,7 @@ class BrickObj extends Entity {
       this.bAlive = false;
     }
     else {
-      this.type = Scalar.Clamp(Math.round(brickTypeObj.type), 0, (bricksType.length-1));
+      this.type = Scalar.Clamp(Math.round(brickTypeObj.type), 0, (bricksType.length - 1));
       this.life = brickTypeObj.life;
       this.score = brickTypeObj.score;
       // Our built-in 'sphere' shape.
@@ -510,12 +534,11 @@ class BrickObj extends Entity {
    */
   touch() {
     if (this.bAlive) {
-      if (this.life > 0)
-      {
+      if (this.life > 0) {
         this.life--;
         if (this.life == 0)
           return true;
-        }
+      }
     }
     return false;
   }
@@ -552,56 +575,56 @@ class BrickManager {
         color: new Color3(0.0, 1, 0.0),
         material: new StandardMaterial("brickMat0"),
         life: 1,
-        score : 10,
+        score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick1`, options),
         color: new Color3(0.1, 0.0, 1.0),
         material: new StandardMaterial("brickMat1"),
         life: 1,
-        score : 10,
+        score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick2`, options),
         color: new Color3(0.0, 0.0, 1),
         material: new StandardMaterial("brickMat2"),
         life: 1,
-        score : 10,
+        score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick3`, options),
         color: new Color3(0.0, 1, 1),
         material: new StandardMaterial("brickMat3"),
         life: 1,
-        score : 10,
+        score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick4`, options),
         color: new Color3(1, 0.0, 0.0),
         material: new StandardMaterial("brickMat4"),
         life: 1,
-        score : 10,
+        score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick5`, options),
         color: new Color3(0.25, 0.25, 0.25),
         material: new StandardMaterial("brickMat5"),
         life: 2,
-        score : 20,
+        score: 20,
       },
       {
         model: MeshBuilder.CreateBox(`brick6`, options),
         color: new Color3(1, 1, 1),
         material: new StandardMaterial("brickMat6"),
         life: 1,
-        score : 10,
+        score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick7`, options),
         color: new Color3(1, 0.5, 0),
         material: new StandardMaterial("brickMat6"),
         life: 1,
-        score : 10,
+        score: 10,
       }
     ];
 
@@ -612,10 +635,10 @@ class BrickManager {
       brickType.model.isVisible = false;
 
       brickType.material.diffuseTexture = new Texture(wallBaseColorUrl);
-            /*
-      brickType.material.diffuseTexture = new Texture(brickBaseColorUrl);
-      brickType.material.diffuseTexture.uScale = 1;
-      brickType.material.diffuseTexture.vScale = 1;*/
+      /*
+brickType.material.diffuseTexture = new Texture(brickBaseColorUrl);
+brickType.material.diffuseTexture.uScale = 1;
+brickType.material.diffuseTexture.vScale = 1;*/
       brickType.material.diffuseColor = brickType.color;
 
       /*brickType.material.emissiveTexture = new Texture(brickNormalUrl);
@@ -656,7 +679,7 @@ class BrickManager {
     if (levelToLoad > levelsDef.length)
       levelToLoad = levelsDef.length;
 
-    let currentLevelMatrix = levelsDef[levelToLoad-1];
+    let currentLevelMatrix = levelsDef[levelToLoad - 1];
 
     for (let j = 0; j < bricksRows; j++) {
       for (let i = 0; i < bricksCols; i++) {
@@ -664,7 +687,7 @@ class BrickManager {
         let x = i * brickWidth;
         let y = 0;
         let z = j * brickHeight;
-        let car = currentLevelMatrix[(bricksRows-1)-j].charAt(i);
+        let car = currentLevelMatrix[(bricksRows - 1) - j].charAt(i);
         if (car === " ") {
           let uneBrique = new BrickObj(index, null, x, y, z, this.#parent);
           this.#bricks[index] = uneBrique;
@@ -675,30 +698,30 @@ class BrickManager {
           let type;
           try {
             type = parseInt(car, 10);
-          } catch(e) {
+          } catch (e) {
             type = 0;
           }
-  
+
 
           let uneBrique = new BrickObj(index, bricksType[type], x, y, z, this.#parent);
-  
-  
+
+
           this.#bricks[index] = uneBrique;
           this.#bricks[index].bAlive = true;
           this.#iLiveBricks++;
         }
       }
-    }          
-/*
-      for (let j = 0; j < bricksRows; j++) {
-        for (let i = 0; i < bricksCols; i++) {
-          let index = j * bricksCols + i;
-          let brick = this.#bricks[index];
-          brick.bAlive = true;
-          brick.setVisible(true);
-          this.#iLiveBricks++;
-          }
-      }*/
+    }
+    /*
+          for (let j = 0; j < bricksRows; j++) {
+            for (let i = 0; i < bricksCols; i++) {
+              let index = j * bricksCols + i;
+              let brick = this.#bricks[index];
+              brick.bAlive = true;
+              brick.setVisible(true);
+              this.#iLiveBricks++;
+              }
+          }*/
   }
 
   update() {
@@ -755,11 +778,12 @@ class BrickManager {
       if (this.#bricks[index].touch()) {
 
         this.#bricks[index].bAlive = false;
-  
+
         this.#bricks[index].setVisible(false);
         this.#bricks[index].explode();
         this.#iLiveBricks--;
         currentScore += this.#bricks[index].score;
+
       }
 
     }
@@ -823,8 +847,8 @@ class BreackOut {
   #cameraStartPosition = new Vector3(-257, 566, -620);
   #cameraMenuPosition = new Vector3(-199, 88, -360);
 
-  #cameraGamePosition = new Vector3(38.95, 106.82, -41);
-  #cameraGameTarget = new Vector3(39.665, 10, -12);
+  #cameraGamePosition = new Vector3(39.54, 107.0, -39.26);
+  #cameraGameTarget = new Vector3(38.6, 14, -11);
 
   constructor(canvas, engine) {
     this.#canvas = canvas;
@@ -877,7 +901,7 @@ class BreackOut {
     pipeline.glowLayer.intensity = 0.35;
     pipeline.glowLayer.blurKernelSize = 16;
     pipeline.glowLayer.ldrMerge = true;
-    
+
 
     debugMaterial = new StandardMaterial("debugMaterial", this.#scene);
     debugMaterial.emissiveColor = Color3.Red();
@@ -912,40 +936,42 @@ class BreackOut {
     //this.#shadowGenerator.usePercentageCloserFiltering = true;
     this.#shadowGenerator.setDarkness(0.4);
 
-    /*
-        this.#ground = MeshBuilder.CreateGroundFromHeightMap("ground", heightMapUrl, {
-          width: 256,
-          height: 256,
-          subdivisions: 1024,
-          minHeight: 0,
-          maxHeight: 8,
-          updatable: false,
-          /*      onReady: function (mesh) {
-                   new PhysicsAggregate(
-                        mesh,
-                        PhysicsShapeType.MESH,
-                        { mass: 0, restitution: 0.1, friction: 10.0 },
-                        scene
-                    );
-                },*//*
-}, this.#scene);
-this.#ground.position = new Vector3(30, -10, 0);
-this.#ground.receiveShadows = true;
+    this.#ground = MeshBuilder.CreateGround("ground", {
+      width: 100,
+      height: 100,
+      subdivisions: 1024,
+      updatable: false,
+      /*      onReady: function (mesh) {
+               new PhysicsAggregate(
+                    mesh,
+                    PhysicsShapeType.MESH,
+                    { mass: 0, restitution: 0.1, friction: 10.0 },
+                    scene
+                );
+            },*/
+    }, this.#scene);
+    this.#ground.position = new Vector3(36, -3.2, 2.94);
+    this.#ground.receiveShadows = true;
 
-var groundMaterial = new StandardMaterial("groundMaterial");
-groundMaterial.diffuseTexture = new Texture(groundBaseColorUrl);
-groundMaterial.diffuseTexture.vScale = 3;
-groundMaterial.diffuseTexture.uScale = 3;
+    var groundMaterial = new StandardMaterial("groundMaterial");
+    groundMaterial.diffuseTexture = new Texture(groundBaseColorUrl);
+    groundMaterial.diffuseColor = new Color3(0.094, 0.224, 0.710)
+    groundMaterial.diffuseTexture.vScale = 3;
+    groundMaterial.diffuseTexture.uScale = 3;
 
+    groundMaterial.specularColor = new Color3(0.188, 0.204, 0.424)
 
-
-groundMaterial.bumpTexture = new Texture(groundNormalUrl);
-groundMaterial.bumpTexture.vScale = 3;
-groundMaterial.bumpTexture.uScale = 3;
-
-// Affect a material
-this.#ground.material = groundMaterial;
+    groundMaterial.bumpTexture = new Texture(groundNormalUrl);
+    groundMaterial.bumpTexture.vScale = 3;
+    groundMaterial.bumpTexture.uScale = 3;
+/*
+    groundMaterial.ambientTexture = new Texture(groundAmbientUrl);
+    groundMaterial.ambientTexture.vScale = 3;
+    groundMaterial.ambientTexture.uScale = 3;
 */
+    // Affect a material
+    this.#ground.material = groundMaterial;
+
     this.buildWalls();
 
 
@@ -979,7 +1005,7 @@ this.#ground.material = groundMaterial;
   launchGameOverAnimation(callback) {
 
     const startFrame = 0;
-    const endFrame = 400;
+    const endFrame = 300;
     const frameRate = 60;
 
     var animationcamera = new Animation(
@@ -993,7 +1019,7 @@ this.#ground.material = groundMaterial;
     keys.push({
       frame: startFrame,
       value: this.#camera.position.clone(),
-      // outTangent: new Vector3(1, 0, 0)
+       outTangent: new Vector3(1, 0, 0)
     });
     keys.push({
       frame: endFrame / 2,
@@ -1001,7 +1027,7 @@ this.#ground.material = groundMaterial;
     });
     keys.push({
       frame: endFrame,
-      // inTangent: new Vector3(-1, 0, 0),
+       inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraMenuPosition,
     });
     animationcamera.setKeys(keys);
@@ -1018,11 +1044,11 @@ this.#ground.material = groundMaterial;
     keysTarget.push({
       frame: startFrame,
       value: this.#camera.target.clone(),
-      // outTangent: new Vector3(1, 0, 0)
+       outTangent: new Vector3(1, 0, 0)
     });
     keysTarget.push({
       frame: endFrame,
-      // inTangent: new Vector3(-1, 0, 0),
+       inTangent: new Vector3(-1, 0, 0),
       value: this.getTargetMenuPosition().clone(),
     });
     animationcameraTarget.setKeys(keysTarget);
@@ -1037,7 +1063,7 @@ this.#ground.material = groundMaterial;
   launchGameStartAnimation(callback) {
 
     const startFrame = 0;
-    const endFrame = 400;
+    const endFrame = 300;
     const frameRate = 60;
 
     var animationcamera = new Animation(
@@ -1051,7 +1077,7 @@ this.#ground.material = groundMaterial;
     keys.push({
       frame: startFrame,
       value: this.#camera.position.clone(),
-      // outTangent: new Vector3(1, 0, 0)
+       outTangent: new Vector3(1, 0, 0)
     });
     keys.push({
       frame: endFrame / 2,
@@ -1059,7 +1085,7 @@ this.#ground.material = groundMaterial;
     });
     keys.push({
       frame: endFrame,
-      // inTangent: new Vector3(-1, 0, 0),
+       inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraGamePosition,
     });
     animationcamera.setKeys(keys);
@@ -1076,11 +1102,11 @@ this.#ground.material = groundMaterial;
     keysTarget.push({
       frame: startFrame,
       value: this.#camera.target.clone(),
-      // outTangent: new Vector3(1, 0, 0)
+       outTangent: new Vector3(1, 0, 0)
     });
     keysTarget.push({
       frame: endFrame,
-      // inTangent: new Vector3(-1, 0, 0),
+       inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraGameTarget,
     });
 
@@ -1099,7 +1125,7 @@ this.#ground.material = groundMaterial;
 
     const frameRate = 60;
     const startFrame = 0;
-    const endFrame = 600;
+    const endFrame = 500;
 
     var animationcamera = new Animation(
       "PreIntroAnimation",
@@ -1114,7 +1140,7 @@ this.#ground.material = groundMaterial;
     keys.push({
       frame: startFrame,
       value: this.#cameraStartPosition,
-      // outTangent: new Vector3(1, 0, 0)
+       outTangent: new Vector3(1, 0, 0)
     });
     keys.push({
       frame: endFrame / 3,
@@ -1122,12 +1148,12 @@ this.#ground.material = groundMaterial;
     });
     keys.push({
       frame: 2 * endFrame / 3,
-      // inTangent: new Vector3(-1, 0, 0),
+       inTangent: new Vector3(-1, 0, 0),
       value: new Vector3(240, 107, -353),
     });
     keys.push({
       frame: endFrame,
-      // inTangent: new Vector3(-1, 0, 0),
+       inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraMenuPosition,
     });
     animationcamera.setKeys(keys);
@@ -1144,11 +1170,11 @@ this.#ground.material = groundMaterial;
     keysTarget.push({
       frame: startFrame,
       value: this.#camera.target.clone(),
-      // outTangent: new Vector3(1, 0, 0)
+       outTangent: new Vector3(1, 0, 0)
     });
     keysTarget.push({
       frame: endFrame,
-      // inTangent: new Vector3(-1, 0, 0),
+       inTangent: new Vector3(-1, 0, 0),
       value: this.getTargetMenuPosition().clone(),
     });
 
@@ -1231,9 +1257,10 @@ this.#ground.material = groundMaterial;
 
       }
       else if (gameState == States.STATE_MENU) {
-
-
-
+        if (this.#inputController.actions["Space"]) {
+          if (gameState == States.STATE_MENU)
+            changeGameState(States.STATE_START_INTRO);
+        }
       }
       else if (gameState == States.STATE_START_INTRO) {
         //this.#camera.setTarget(this.#cameraGameTarget);
@@ -1285,9 +1312,9 @@ this.#ground.material = groundMaterial;
         //Update bricks
         this.#brickManager.update();
         if (this.#brickManager.isLevelFinished()) {
-          
+
           currentLevel++;
-          currentScore+= 100;
+          currentScore += 100;
           this.#brickManager.loadLevel();
           this.#ball.launch(0.25, 0, 0.5);
         }
@@ -1302,7 +1329,7 @@ this.#ground.material = groundMaterial;
           this.#bPause = false;
           changeGameState(States.STATE_RUNNING);
         }
-        
+
       }
 
       //Render : (auto)
@@ -1340,7 +1367,7 @@ this.#ground.material = groundMaterial;
     this.#brickManager.loadLevel();
     this.#ball.reset();
     //this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
-    nbLives = START_LIVES;    
+    nbLives = START_LIVES;
     if (currentScore > currentHighScore)
       currentHighScore = currentScore;
     currentScore = 0;
@@ -1487,8 +1514,8 @@ this.#ground.material = groundMaterial;
     this.#camera.setTarget(guiParent.getAbsolutePosition());
 
     var startGameButton = MeshBuilder.CreatePlane("startGameButton", { width: 10, depth: 10 });
-    startGameButton.scaling = new Vector3(3.5, 20, 10);
-    startGameButton.position = new Vector3(-259, 87, -361.3);
+    startGameButton.scaling = new Vector3(3.8, 16, 1);
+    startGameButton.position = new Vector3(-259, 86, -361.3);
     startGameButton.rotation.x = Math.PI / 8;
     startGameButton.rotation.y = -Math.PI / 2;
 
@@ -1496,7 +1523,7 @@ this.#ground.material = groundMaterial;
 
     var button1 = Button.CreateSimpleButton("but1", "START");
     button1.width = 0.2;
-    button1.height = 0.8;
+    button1.height = 0.85;
     button1.color = "white";
     button1.fontSize = 64;
     button1.background = "";
@@ -1547,12 +1574,12 @@ this.#ground.material = groundMaterial;
     this.textHigh.left = spacing * 3;
     this.textHigh.top = 20;
     this.#gameUI.addControl(this.textHigh);
-    
+
     // Lives
     this.textLives = new TextBlock("Score");
     this.textLives.color = "white";
     this.textLives.fontSize = fontSize;
-    
+
     //this.textLives.fontFamily = '"Press Start 2P"';
     this.textLives.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.textLives.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
@@ -1560,12 +1587,12 @@ this.#ground.material = groundMaterial;
     this.textLives.top = 20;
     this.#gameUI.addControl(this.textLives);
     this.showGameUI(false);
-    
+
     this.updateAllText();
     window.onresize = () => {
       this.getCanvasSize();
       this.fixTextScale();
-    }    
+    }
   }
   showGameUI(bActive) {
     this.#gameUI.rootContainer.isVisible = bActive;
@@ -1585,12 +1612,12 @@ this.#ground.material = groundMaterial;
   updateTextHighScore() {
     this.textHigh.text = `High Score : ${currentHighScore}`;
   }
-  
+
   updateTextLevel() {
     this.textLevel.text = `Lvl : ${currentLevel}`;
   }
 
-  
+
   getCanvasSize() {
     this.canvasWidth = document.querySelector("canvas").width;
     this.canvasHeight = document.querySelector("canvas").height;
@@ -1608,7 +1635,7 @@ this.#ground.material = groundMaterial;
     this.textScore.left = -spacing * 3;
     this.textLevel.left = -spacing;
     this.textHigh.left = spacing * 3;
-    }
+  }
 
 }
 
