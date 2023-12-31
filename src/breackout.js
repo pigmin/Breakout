@@ -55,12 +55,12 @@ import { AdvancedDynamicTexture, Button, Control, TextBlock } from "@babylonjs/g
 import "./levels";
 import { levelsDef } from "./levels";
 
-const bricksRows = 16;
+const bricksRows = 25;
 const bricksCols = 13;
-const brickWidth = 6;
-const brickHeight = 2.5;
-const brickPaddingX = 0.5;
-const brickPaddingZ = 0.5;
+const brickWidth = (18.0/3.0);
+const brickHeight = (7.0/3.0);
+const brickPaddingX = (1.0/3.0);
+const brickPaddingZ = (1.0/3.0);
 
 let bricksType = [];
 
@@ -72,18 +72,18 @@ const profondeurWalls = profondeur + 45;
 const hauteurWalls = 5;
 const epaisseurWalls = 2;
 
-const BALL_SPEED_FACTOR = 1.5;
+const BALL_SPEED_FACTOR = 2.2;
 
-const MIN_P_VELOCITY = 0.05;
-const DRAG_FORCE = 0.65;
-const PADDLE_ACC_X = 0.4;
-const MAX_VELOCITY = 8;
+const MIN_P_VELOCITY = 0.2;
+const DRAG_FORCE = 0.6;
+const PADDLE_ACC_X = 0.7;
+const MAX_VELOCITY = 14;
 
 
 const baseZBall = -30;
 const ballRadius = 0.75;
-const paddleWidth = 9;
-const paddleRadius = 0.6;
+const paddleWidth = (30/3.0);
+const paddleRadius = ((5/2)/3.0);
 const baseZPaddle = baseZBall - paddleRadius * 2;
 const offArea = baseZPaddle - paddleRadius * 8;
 
@@ -194,25 +194,24 @@ class Paddle extends Entity {
     super(x, y, z);
 
     this.#inputController = inputController;
-    this.gameObject = new MeshBuilder.CreateCapsule("capsule", { radius: paddleRadius, capSubdivisions: 6, subdivisions: 6, tessellation: 36, height: paddleWidth, orientation: Vector3.Left() });
+    this.gameObject = new MeshBuilder.CreateCapsule("capsule", { radius: paddleRadius, capSubdivisions: 8, subdivisions: 1, tessellation: 8, height: paddleWidth, orientation: Vector3.Left() });
     shadowGenerator.addShadowCaster(this.gameObject);
 
     let trailMaterial = new StandardMaterial('reactMat');
-    let color = new Color3(0.2, 0.4, 1);
 
-    trailMaterial.emissiveColor = color;
-    trailMaterial.diffuseColor = color;
-    trailMaterial.specularColor = new Color3(1, 1, 1);
+    //trailMaterial.emissiveColor = new Color3(0.2, 0, 0);
+    trailMaterial.diffuseColor = new Color3(1, 0, 0);
+    trailMaterial.specularColor = new Color3(0.9, 0.6, 0.6);
 
 
-    let lReact = new MeshBuilder.CreateCylinder("lReact", { height: paddleRadius + 0.2, diameter: paddleRadius * 3.0 });
+    let lReact = new MeshBuilder.CreateCylinder("lReact", { height: paddleRadius + 0.6, diameter: paddleRadius * 2.5 });
     lReact.position.x = -paddleWidth / 3;
     lReact.rotation.z = -Math.PI / 2;
 
     lReact.material = trailMaterial;
     lReact.setParent(this.gameObject);
 
-    let rReact = new MeshBuilder.CreateCylinder("rReact", { height: paddleRadius + 0.2, diameter: paddleRadius * 3.0 });
+    let rReact = new MeshBuilder.CreateCylinder("rReact", { height: paddleRadius + 0.6, diameter: paddleRadius * 2.5 });
     rReact.position.x = paddleWidth / 3;
     rReact.rotation.z = -Math.PI / 2;
     rReact.material = trailMaterial;
@@ -221,8 +220,8 @@ class Paddle extends Entity {
 
     var paddleMaterial = new StandardMaterial("paddleMaterial");
     //var paddleTexture 
-    paddleMaterial.diffuseColor = new Color3(1, 1, 1.0);
-    paddleMaterial.emmisiveColor = new Color3(1, 1, 1.0);
+    paddleMaterial.diffuseColor = new Color3(0.624, 0.784, 0.94);
+    paddleMaterial.emmisiveColor = new Color3(0.196, 0.263, 0.314);
     //ballMaterial.bumpTexture = new Texture(rockTextureNormalUrl);
 
 
@@ -477,8 +476,8 @@ class Ball extends Entity {
       this.#comboTouch = 0;
       this.vz = -this.vz;
       this.z = this.#paddle.z + paddleRadius;
-      let distanceFromPaddle = this.x - this.#paddle.x;
-      this.vx = distanceFromPaddle * 0.1;
+      let distanceFromPaddle = (this.x - this.#paddle.x);
+      this.vx = distanceFromPaddle * 0.12;
       playSound(SoundsFX.PADDLE);
     }
 
@@ -572,59 +571,73 @@ class BrickManager {
     bricksType = [
       {
         model: MeshBuilder.CreateBox(`brick0`, options),
-        color: new Color3(0.0, 1, 0.0),
+        color: new Color3(0.0, 1, 0.0),                   //VERT
         material: new StandardMaterial("brickMat0"),
         life: 1,
         score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick1`, options),
-        color: new Color3(0.1, 0.0, 1.0),
+        color: new Color3(1, 0.0, 1.0),                   //VIOLET
         material: new StandardMaterial("brickMat1"),
         life: 1,
         score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick2`, options),
-        color: new Color3(0.0, 0.0, 1),
+        color: new Color3(0.0, 0.4, 1),                   //BLEU FONCE
         material: new StandardMaterial("brickMat2"),
         life: 1,
         score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick3`, options),
-        color: new Color3(0.0, 1, 1),
+        color: new Color3(1, 1, 0),                       //JAUNE VIF
         material: new StandardMaterial("brickMat3"),
         life: 1,
         score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick4`, options),
-        color: new Color3(1, 0.0, 0.0),
+        color: new Color3(1, 0.0, 0.0),                 //ROUGE
         material: new StandardMaterial("brickMat4"),
         life: 1,
         score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick5`, options),
-        color: new Color3(0.25, 0.25, 0.25),
+        color: new Color3(1, 1, 1),                     //BLANC
         material: new StandardMaterial("brickMat5"),
-        life: 2,
-        score: 20,
+        life: 1,
+        score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick6`, options),
-        color: new Color3(1, 1, 1),
+        color: new Color3(1, 0.6, 0),                   //ORANGE
         material: new StandardMaterial("brickMat6"),
         life: 1,
         score: 10,
       },
       {
         model: MeshBuilder.CreateBox(`brick7`, options),
-        color: new Color3(1, 0.5, 0),
-        material: new StandardMaterial("brickMat6"),
+        color: new Color3(0, 1.0, 1.0),               //TURQUOISE
+        material: new StandardMaterial("brickMat7"),
         life: 1,
         score: 10,
+      },
+      {
+        model: MeshBuilder.CreateBox(`brick8`, options),
+        color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
+        material: new StandardMaterial("brickMat8"),
+        life: 1,
+        score: 10,
+      },      
+      {
+        model: MeshBuilder.CreateBox(`brick9`, options),
+        color: new Color3(0.6, 0.6, 0.6),             //GRIS
+        material: new StandardMaterial("brickMat9"),
+        life: 2,
+        score: 20,
       }
     ];
 
@@ -847,8 +860,8 @@ class BreackOut {
   #cameraStartPosition = new Vector3(-257, 566, -620);
   #cameraMenuPosition = new Vector3(-199, 88, -360);
 
-  #cameraGamePosition = new Vector3(39.54, 107.0, -39.26);
-  #cameraGameTarget = new Vector3(38.6, 14, -11);
+  #cameraGamePosition = new Vector3(36.01, 127.25, -41.91);
+  #cameraGameTarget = new Vector3(35, 15.71, -5.89);
 
   constructor(canvas, engine) {
     this.#canvas = canvas;
@@ -937,9 +950,9 @@ class BreackOut {
     this.#shadowGenerator.setDarkness(0.4);
 
     this.#ground = MeshBuilder.CreateGround("ground", {
-      width: 100,
-      height: 100,
-      subdivisions: 1024,
+      width: 89,
+      height: 110,
+      subdivisions: 64,
       updatable: false,
       /*      onReady: function (mesh) {
                new PhysicsAggregate(
@@ -950,7 +963,7 @@ class BreackOut {
                 );
             },*/
     }, this.#scene);
-    this.#ground.position = new Vector3(36, -3.2, 2.94);
+    this.#ground.position = new Vector3(36, -3.2, 6);
     this.#ground.receiveShadows = true;
 
     var groundMaterial = new StandardMaterial("groundMaterial");
