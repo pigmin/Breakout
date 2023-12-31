@@ -5,13 +5,9 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
 import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera, PrecisionDate } from "@babylonjs/core";
-import { PhysicsShapeType, PhysicsMotionType } from "@babylonjs/core/Physics/v2/IPhysicsEnginePlugin";
-
-import { PhysicsBody } from "@babylonjs/core/Physics/v2/physicsBody";
-import { PhysicsAggregate } from "@babylonjs/core/Physics/v2/physicsAggregate";
 
 
-import { HavokPlugin } from "@babylonjs/core/Physics/v2/Plugins/havokPlugin";
+
 import { Inspector } from '@babylonjs/inspector';
 import { TrailMesh } from '@babylonjs/core/Meshes/trailMesh';
 
@@ -37,8 +33,10 @@ import groundAmbientUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal
 import particleExplosionUrl from "../assets/particles/systems/particleSystem.json"
 import particleExplosionTextureUrl from "../assets/particles/textures/dotParticle.png"
 
-//import musicUrl from "../assets/musics/Eric Cubizolle - Andromeda.mp3";
-import musicUrl from "../assets/musics/2ND_PM.mp3";
+import musicUrl1 from "../assets/musics/2ND_PM.mp3";
+/*import musicUrl2 from "../assets/musics/Eric Cubizolle - Andromeda.mp3";
+import musicUrl3 from "../assets/musics/Eric Cubizolle - Kain.mp3";
+*/
 
 //import boingSoundUrl from "../assets/sounds/446100__justinvoke__bounce.wav";
 import brickTouchedSoundUrl1 from "../assets/sounds/Arkanoid SFX (7).wav";
@@ -57,10 +55,10 @@ import { levelsDef } from "./levels";
 
 const bricksRows = 25;
 const bricksCols = 13;
-const brickWidth = (18.0/3.0);
-const brickHeight = (7.0/3.0);
-const brickPaddingX = (1.0/3.0);
-const brickPaddingZ = (1.0/3.0);
+const brickWidth = (18.0 / 3.0);
+const brickHeight = (7.0 / 3.0);
+const brickPaddingX = (1.0 / 3.0);
+const brickPaddingZ = (1.0 / 3.0);
 
 let bricksType = [];
 
@@ -82,10 +80,10 @@ const MAX_VELOCITY = 14;
 
 const baseZBall = -30;
 const ballRadius = 0.75;
-const paddleWidth = (30/3.0);
-const paddleRadius = ((5/2)/3.0);
+const paddleWidth = (30 / 3.0);
+const paddleRadius = ((5 / 2) / 3.0);
 const baseZPaddle = baseZBall - paddleRadius * 2;
-const offArea = baseZPaddle - paddleRadius * 8;
+const offArea = baseZPaddle - paddleRadius * 32;
 
 const WORLD_MIN_X = -brickWidth + (epaisseurWalls / 2) + ballRadius;
 const WORLD_MAX_X = (largeur) - (epaisseurWalls / 2) - ballRadius;
@@ -375,6 +373,11 @@ class Ball extends Entity {
     this.x = this.#paddle.x;
     this.y = 0;
     this.z = baseZBall;
+    this.vx = 0;
+    this.vy = 0;
+    this.vz = 0;
+    this.isAlive = false;
+    this.updatePosition();
   }
 
   update() {
@@ -443,12 +446,12 @@ class Ball extends Entity {
 
 
         this.#brickManager.touchBrickAt(this.x, this.y, this.z);
-        let currentDate = Date.now();
+        let currentDate = performance.now();
         let delta = currentDate - this.#lastDateTouch;
         this.#lastDateTouch = currentDate;
         if (delta > 0 && delta < 2000) {
           this.#comboTouch++;
-          this.#currentTurbo = Math.min(this.#comboTouch / 20, 3);
+          this.#currentTurbo = Math.min(this.#comboTouch / 20, 2.5);
         }
         else
           this.#comboTouch = 0;
@@ -632,7 +635,7 @@ class BrickManager {
         material: new StandardMaterial("brickMat8"),
         life: 1,
         score: 10,
-      },      
+      },
       {
         model: MeshBuilder.CreateBox(`brick9`, options),
         color: new Color3(0.6, 0.6, 0.6),             //GRIS
@@ -684,9 +687,9 @@ brickType.material.diffuseTexture.vScale = 1;*/
     for (let i = 0; i < this.#bricks.length; i++) {
       let brick = this.#bricks[i];
       if (brick) {
-        brick.bAlive = false; 
+        brick.bAlive = false;
         if (brick.gameObject) {
-          brick.setVisible(false);  
+          brick.setVisible(false);
           brick.gameObject.dispose();
         }
       }
@@ -832,6 +835,7 @@ const States = Object.freeze({
   STATE_INTRO: 30,
   STATE_START_GAME: 35,
   STATE_LAUNCH: 40,
+  STATE_NEW_LEVEL: 45,
   STATE_RUNNING: 50,
   STATE_PAUSE: 60,
   STATE_LOOSE: 70,
@@ -850,7 +854,7 @@ class BreackOut {
   #light;
   #shadowGenerator;
   #hightLightLayer;
-  #music;
+  #musics = [];
   #bPause;
 
   #ground;
@@ -868,6 +872,7 @@ class BreackOut {
   #menuUiTexture;
   #gameUI;
 
+  #timeToLaunch = 0;
   #cameraStartPosition = new Vector3(-257, 566, -620);
   #cameraMenuPosition = new Vector3(-199, 88, -360);
 
@@ -965,14 +970,6 @@ class BreackOut {
       height: 110,
       subdivisions: 64,
       updatable: false,
-      /*      onReady: function (mesh) {
-               new PhysicsAggregate(
-                    mesh,
-                    PhysicsShapeType.MESH,
-                    { mass: 0, restitution: 0.1, friction: 10.0 },
-                    scene
-                );
-            },*/
     }, this.#scene);
     this.#ground.position = new Vector3(36, -3.2, 6);
     this.#ground.receiveShadows = true;
@@ -988,11 +985,11 @@ class BreackOut {
     groundMaterial.bumpTexture = new Texture(groundNormalUrl);
     groundMaterial.bumpTexture.vScale = 3;
     groundMaterial.bumpTexture.uScale = 3;
-/*
-    groundMaterial.ambientTexture = new Texture(groundAmbientUrl);
-    groundMaterial.ambientTexture.vScale = 3;
-    groundMaterial.ambientTexture.uScale = 3;
-*/
+    /*
+        groundMaterial.ambientTexture = new Texture(groundAmbientUrl);
+        groundMaterial.ambientTexture.vScale = 3;
+        groundMaterial.ambientTexture.uScale = 3;
+    */
     // Affect a material
     this.#ground.material = groundMaterial;
 
@@ -1007,7 +1004,16 @@ class BreackOut {
     skyMaterial.lineColor = new Color3(0, 1.0, 1.0);
     skyMaterial.backFaceCulling = false;
 
-    this.#music = new Sound("music", musicUrl, this.#scene, null, { loop: true, autoplay: true });
+    this.#musics[0] = new Sound("music0", musicUrl1, this.#scene, null, { loop: true, autoplay: true, volume: 0.5 });
+  /*  this.#musics[1] = new Sound("music1", musicUrl2, this.#scene, null, { loop: true, autoplay: false });
+    this.#musics[2] = new Sound("music2", musicUrl3, this.#scene, null, { loop: true, autoplay: false });
+    this.#musics[3] = new Sound("music3", musicUrl4, this.#scene, null, { loop: true, autoplay: false });
+    this.#musics[4] = new Sound("music4", musicUrl5, this.#scene, null, { loop: true, autoplay: false });
+    this.#musics[5] = new Sound("music5", musicUrl6, this.#scene, null, { loop: true, autoplay: false });
+    this.#musics[6] = new Sound("music6", musicUrl7, this.#scene, null, { loop: true, autoplay: false });
+    this.#musics[7] = new Sound("music7", musicUrl8, this.#scene, null, { loop: true, autoplay: false });
+    */
+    this.#musics
 
     this.#skySphere = MeshBuilder.CreateSphere("skySphere", { diameter: 3000, segments: 32 }, this.#scene);
     this.#skySphere.material = skyMaterial;
@@ -1043,7 +1049,7 @@ class BreackOut {
     keys.push({
       frame: startFrame,
       value: this.#camera.position.clone(),
-       outTangent: new Vector3(1, 0, 0)
+      outTangent: new Vector3(1, 0, 0)
     });
     keys.push({
       frame: endFrame / 2,
@@ -1051,7 +1057,7 @@ class BreackOut {
     });
     keys.push({
       frame: endFrame,
-       inTangent: new Vector3(-1, 0, 0),
+      inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraMenuPosition,
     });
     animationcamera.setKeys(keys);
@@ -1068,11 +1074,11 @@ class BreackOut {
     keysTarget.push({
       frame: startFrame,
       value: this.#camera.target.clone(),
-       outTangent: new Vector3(1, 0, 0)
+      outTangent: new Vector3(1, 0, 0)
     });
     keysTarget.push({
       frame: endFrame,
-       inTangent: new Vector3(-1, 0, 0),
+      inTangent: new Vector3(-1, 0, 0),
       value: this.getTargetMenuPosition().clone(),
     });
     animationcameraTarget.setKeys(keysTarget);
@@ -1101,7 +1107,7 @@ class BreackOut {
     keys.push({
       frame: startFrame,
       value: this.#camera.position.clone(),
-       outTangent: new Vector3(1, 0, 0)
+      outTangent: new Vector3(1, 0, 0)
     });
     keys.push({
       frame: endFrame / 2,
@@ -1109,7 +1115,7 @@ class BreackOut {
     });
     keys.push({
       frame: endFrame,
-       inTangent: new Vector3(-1, 0, 0),
+      inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraGamePosition,
     });
     animationcamera.setKeys(keys);
@@ -1126,11 +1132,11 @@ class BreackOut {
     keysTarget.push({
       frame: startFrame,
       value: this.#camera.target.clone(),
-       outTangent: new Vector3(1, 0, 0)
+      outTangent: new Vector3(1, 0, 0)
     });
     keysTarget.push({
       frame: endFrame,
-       inTangent: new Vector3(-1, 0, 0),
+      inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraGameTarget,
     });
 
@@ -1164,7 +1170,7 @@ class BreackOut {
     keys.push({
       frame: startFrame,
       value: this.#cameraStartPosition,
-       outTangent: new Vector3(1, 0, 0)
+      outTangent: new Vector3(1, 0, 0)
     });
     keys.push({
       frame: endFrame / 3,
@@ -1172,12 +1178,12 @@ class BreackOut {
     });
     keys.push({
       frame: 2 * endFrame / 3,
-       inTangent: new Vector3(-1, 0, 0),
+      inTangent: new Vector3(-1, 0, 0),
       value: new Vector3(240, 107, -353),
     });
     keys.push({
       frame: endFrame,
-       inTangent: new Vector3(-1, 0, 0),
+      inTangent: new Vector3(-1, 0, 0),
       value: this.#cameraMenuPosition,
     });
     animationcamera.setKeys(keys);
@@ -1194,11 +1200,11 @@ class BreackOut {
     keysTarget.push({
       frame: startFrame,
       value: this.#camera.target.clone(),
-       outTangent: new Vector3(1, 0, 0)
+      outTangent: new Vector3(1, 0, 0)
     });
     keysTarget.push({
       frame: endFrame,
-       inTangent: new Vector3(-1, 0, 0),
+      inTangent: new Vector3(-1, 0, 0),
       value: this.getTargetMenuPosition().clone(),
     });
 
@@ -1272,6 +1278,8 @@ class BreackOut {
     const divFps = document.getElementById("fps");
     this.#engine.runRenderLoop(() => {
 
+      const now = performance.now();
+
       this.#inputController.update();
       this.updateAllText();
 
@@ -1299,19 +1307,35 @@ class BreackOut {
         //RAS
       }
       else if (gameState == States.STATE_START_GAME) {
-        changeGameState(States.STATE_LAUNCH);
+        changeGameState(States.STATE_NEW_LEVEL);
       }
       else if (gameState == States.STATE_LAUNCH) {
-        this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
-        changeGameState(States.STATE_RUNNING);
+        //Update paddle
+        this.#paddle.checkInput();
+        this.#paddle.update();
+        this.#ball.x = this.#paddle.x;
+        this.#ball.update();
+        
+        if (now > this.#timeToLaunch) {
+          this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          changeGameState(States.STATE_RUNNING);
+        }
+      }
+      else if (gameState == States.STATE_NEW_LEVEL) {
+        //Random music
+/*        let musicId = getRandomInt(this.#musics.length-1);
+        this.#musics[musicId].play()*/
+        this.#ball.reset();
+        this.#timeToLaunch = now + 1000;
+        changeGameState(States.STATE_LAUNCH);
       }
       else if (gameState == States.STATE_LOOSE) {
         if (nbLives > 0) {
           nbLives--;
           this.updateTextLives();
           this.#ball.reset();
-          this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
-          changeGameState(States.STATE_RUNNING);
+          this.#timeToLaunch = now + 500;
+          changeGameState(States.STATE_LAUNCH);
         }
         else {
           this.resetGame();
@@ -1337,13 +1361,14 @@ class BreackOut {
         this.#brickManager.update();
         if (this.#brickManager.isLevelFinished()) {
 
+          currentScore += 100;
+
           currentLevel++;
           if (currentLevel > lastLevel)
             currentLevel = 1;
 
-          currentScore += 100;
           this.#brickManager.loadLevel();
-          this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          changeGameState(States.STATE_NEW_LEVEL);
         }
         if (this.#inputController.actions["KeyP"]) {
           this.#bPause = true;
@@ -1354,9 +1379,8 @@ class BreackOut {
           if (currentLevel > lastLevel)
             currentLevel = 1;
 
-          this.#brickManager.reset();
           this.#brickManager.loadLevel();
-          this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          changeGameState(States.STATE_NEW_LEVEL);
         }
 
       }
@@ -1476,8 +1500,7 @@ class BreackOut {
     entity_number,
     props,
     scene,
-    shadowGenerator,
-    bAddPhysics
+    shadowGenerator
   ) {
     const meshTask = manager.addMeshTask(name, meshNameToLoad, url, file);
 
@@ -1507,14 +1530,6 @@ class BreackOut {
       for (let mesh of parent.getChildMeshes()) {
         mesh.receiveShadows = true;
         mesh.computeWorldMatrix(true);
-      }
-      if (bAddPhysics === true) {
-        new PhysicsAggregate(
-          parent,
-          PhysicsShapeType.MESH,
-          { mass: 1, restitution: 0.88 },
-          scene
-        );
       }
     };
     meshTask.onError = function (e) {
