@@ -119,6 +119,7 @@ let nbLives = START_LIVES;
 let currentScore = 0;
 let currentHighScore = 0;
 let currentLevel = 1;
+let lastLevel = levelsDef.length;
 
 let gameState;
 function changeGameState(newState) {
@@ -680,6 +681,16 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   reset() {
+    for (let i = 0; i < this.#bricks.length; i++) {
+      let brick = this.#bricks[i];
+      if (brick) {
+        brick.bAlive = false; 
+        if (brick.gameObject) {
+          brick.setVisible(false);  
+          brick.gameObject.dispose();
+        }
+      }
+    }
     this.#bricks = [];
     this.#iLiveBricks = 0;
   }
@@ -689,8 +700,8 @@ brickType.material.diffuseTexture.vScale = 1;*/
 
     //Load level
     let levelToLoad = currentLevel;
-    if (levelToLoad > levelsDef.length)
-      levelToLoad = levelsDef.length;
+    if (levelToLoad > lastLevel)
+      levelToLoad = lastLevel;
 
     let currentLevelMatrix = levelsDef[levelToLoad - 1];
 
@@ -1327,13 +1338,25 @@ class BreackOut {
         if (this.#brickManager.isLevelFinished()) {
 
           currentLevel++;
+          if (currentLevel > lastLevel)
+            currentLevel = 1;
+
           currentScore += 100;
           this.#brickManager.loadLevel();
-          this.#ball.launch(0.25, 0, 0.5);
+          this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
         }
         if (this.#inputController.actions["KeyP"]) {
           this.#bPause = true;
           changeGameState(States.STATE_PAUSE);
+        }
+        if (this.#inputController.actions["KeyN"]) {
+          currentLevel++;
+          if (currentLevel > lastLevel)
+            currentLevel = 1;
+
+          this.#brickManager.reset();
+          this.#brickManager.loadLevel();
+          this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
         }
 
       }
