@@ -45,8 +45,10 @@ import brickTouchedSoundUrl1 from "../assets/sounds/Arkanoid SFX (7).wav";
 import brickTouchedSoundUrl2 from "../assets/sounds/Arkanoid SFX (8).wav";
 import hardBrickTouchedSoundUrl from "../assets/sounds/hard_brick.mp3";
 import paddleTouchedSoundUrl from "../assets/sounds/Arkanoid SFX (6).wav";
-import bonusLifeSoundUrl from "../assets/sounds/Arkanoid SFX (9).wav";
 import looseSoundUrl from "../assets/sounds/Arkanoid SFX (2).wav";
+
+import bonusLifeSoundUrl from "../assets/sounds/Arkanoid SFX (9).wav";
+import bonusGrowSoundUrl from "../assets/sounds/Arkanoid SFX (4).wav";
 
 
 import roomModelUrl from "../assets/models/secret_area-52__room.glb";
@@ -84,17 +86,13 @@ const MAX_VELOCITY = 14;
 
 const BASE_Z_BALL = -30;
 const BALL_RADIUS = 0.75;
-let PADDLE_WIDTH = (30 / 3.0);
+const PADDLE_WIDTH = (30 / 3.0);
 const PADDLE_RADIUS = ((5 / 2) / 3.0);
 const BASE_Z_PADDLE = BASE_Z_BALL - PADDLE_RADIUS * 2;
 const OFF_AREA = BASE_Z_PADDLE - PADDLE_RADIUS * 32;
 
 const WORLD_MIN_X = -BRICK_WIDTH + (WALLS_THICKNESS / 2) + BALL_RADIUS;
 const WORLD_MAX_X = (GAME_AREA_WIDTH) - (WALLS_THICKNESS / 2) - BALL_RADIUS;
-
-
-let PADDLE_MIN_X = (WORLD_MIN_X + PADDLE_WIDTH / 2) - BALL_RADIUS;
-let PADDLE_MAX_X = (WORLD_MAX_X - PADDLE_WIDTH / 2) + BALL_RADIUS;
 
 
 const WORLD_MIN_Y = -5;
@@ -135,9 +133,11 @@ function changeGameState(newState) {
 let SoundsFX = Object.freeze({
   BRICK1: 0,
   BRICK2: 1,
-  PADDLE: 2,
-  LOOSE: 3,
-  BONUS_LIFE: 4,
+  HARD_BRICK: 2, 
+  PADDLE: 3,
+  LOOSE: 4,
+  BONUS_LIFE: 5,
+  BONUS_GROW: 6,
 })
 
 let soundsRepo = [];
@@ -204,10 +204,18 @@ class Entity {
 class Paddle extends Entity {
 
   #inputController;
+  #scene;
+  #temporaryGrowFactor;
+  #temporaryGrowEndTime;
 
-  constructor(x, y, z, inputController) {
+  #paddleMinX = (WORLD_MIN_X + PADDLE_WIDTH / 2) - BALL_RADIUS;
+  #paddleMaxX = (WORLD_MAX_X - PADDLE_WIDTH / 2) + BALL_RADIUS;
+
+
+  constructor(x, y, z, inputController, scene) {
     super(x, y, z);
 
+    this.#scene = scene;
     this.#inputController = inputController;
     this.gameObject = new MeshBuilder.CreateCapsule("capsule", { radius: PADDLE_RADIUS, capSubdivisions: 8, subdivisions: 1, tessellation: 8, height: PADDLE_WIDTH, orientation: Vector3.Left() });
     shadowGenerator.addShadowCaster(this.gameObject);
@@ -234,8 +242,8 @@ class Paddle extends Entity {
 
 
     var paddleMaterial = new StandardMaterial("paddleMaterial");
-    var paddleTexture  = new Texture(paddleBaseColorUrl);
-    var paddleNormalTexture  = new Texture(paddleNormalUrl);
+    var paddleTexture = new Texture(paddleBaseColorUrl);
+    var paddleNormalTexture = new Texture(paddleNormalUrl);
     paddleMaterial.diffuseTexture = paddleTexture;
     paddleMaterial.bumpTexture = paddleNormalTexture;
 
@@ -247,6 +255,10 @@ class Paddle extends Entity {
 
     this.createParticles(lReact, "lReact", new Vector3(0, -1, 0));
     this.createParticles(rReact, "rReact", new Vector3(0, 1, 0));
+
+    this.#temporaryGrowFactor = 1.0;
+    this.#temporaryGrowEndTime = 0;
+
 
     this.updatePosition();
   }
@@ -315,16 +327,84 @@ class Paddle extends Entity {
 
   update() {
 
+    if (this.#temporaryGrowEndTime > 0 && this.#temporaryGrowEndTime < performance.now())
+      this.grow(false);
+    
     this.applyVelocities();
 
     //Walls collisions
-    if (this.x > PADDLE_MAX_X)
-      this.x = PADDLE_MAX_X;
-    else if (this.x < PADDLE_MIN_X)
-      this.x = PADDLE_MIN_X;
+    if (this.x > this.#paddleMaxX)
+      this.x = this.#paddleMaxX;
+    else if (this.x < this.#paddleMinX)
+      this.x = this.#paddleMinX;
 
     this.updatePosition();
 
+  }
+
+  getLeftX() {
+    return this.x - (PADDLE_WIDTH*this.#temporaryGrowFactor) / 2;    
+  }
+
+  getRightX() {
+    return this.x + (PADDLE_WIDTH*this.#temporaryGrowFactor) / 2;    
+  }
+
+  grow(bGrowing) {
+    if (bGrowing) {
+      //animate to grow
+
+      this.#temporaryGrowEndTime = performance.now() + 20000;
+      this.#temporaryGrowFactor = 1.5;
+    }
+    else {
+      this.#temporaryGrowEndTime = 0;
+      this.#temporaryGrowFactor = 1.0;
+    }
+   // this.gameObject.scaling.x = this.#temporaryGrowFactor;
+    //On recalcule les min/max
+    this.#paddleMinX = (WORLD_MIN_X + PADDLE_WIDTH / 2) - BALL_RADIUS;
+    this.#paddleMaxX = (WORLD_MAX_X - PADDLE_WIDTH / 2) + BALL_RADIUS;
+    this.growAnimation(!bGrowing);
+  }
+
+  reset() {
+    //glue 
+    this.grow(false);
+  }
+
+  
+  growAnimation(bReverse) {
+
+    const startFrame = 0;
+    const endFrame = 60;
+    const frameRate = 60;
+
+    var animation = new Animation(
+      "GrowingAnimation",
+      "scaling.x",
+      frameRate,
+      Animation.ANIMATIONTYPE_FLOAT,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+    var keys = [];
+    keys.push({
+      frame: startFrame,
+      value: 1
+    });
+    keys.push({
+      frame: endFrame,
+      value: this.#temporaryGrowFactor,
+    });
+    animation.setKeys(keys);
+
+    this.gameObject.animations = [];
+    this.gameObject.animations.push(animation);
+
+    if (bReverse)
+      this.#scene.beginAnimation(this.gameObject, endFrame, startFrame, false, 1, undefined);
+    else
+      this.#scene.beginAnimation(this.gameObject, startFrame, endFrame, false, 1, undefined);
   }
 
 }
@@ -509,7 +589,7 @@ class Ball extends Entity {
         //Bonus ?
         if (brickDestroyed) {
           playSound(getRandomInt(1) + SoundsFX.BRICK1);
-          this.#bonusManager.launch(this.x, this.y, this.z);
+          this.#bonusManager.randomLaunch(this.x, this.y, this.z);
         }
         else {
           playSound(SoundsFX.HARD_BRICK);
@@ -529,8 +609,8 @@ class Ball extends Entity {
     let lx = this.x - BALL_RADIUS;
     let rx = this.x + BALL_RADIUS;
 
-    let plx = this.#paddle.x - PADDLE_WIDTH / 2;
-    let prx = this.#paddle.x + PADDLE_WIDTH / 2;
+    let plx = this.#paddle.getLeftX();
+    let prx = this.#paddle.getRightX();
 
     let dz = Math.sqrt((this.z - this.#paddle.z) * (this.z - this.#paddle.z));
     if (this.isAlive && this.z < (this.#paddle.z + PADDLE_RADIUS) && dz < 1 && (lx <= prx && rx >= plx)) {
@@ -575,7 +655,7 @@ class BonusObj extends Entity {
 
     // Our built-in 'sphere' shape.
     this.gameObject = bonusType.model.createInstance(`bonusInstance${index}`);
-    this.gameObject.rotation = new Vector3(Math.PI/12, Math.PI/8, Math.PI/2);
+    this.gameObject.rotation = new Vector3(Math.PI / 12, Math.PI / 8, Math.PI / 2);
     this.gameObject.setParent(parent);
     //this.gameObject.receiveShadows = true;
     shadowGenerator.addShadowCaster(this.gameObject, true);
@@ -665,11 +745,11 @@ class BonusObj extends Entity {
   }
 
   checkPaddleCollision() {
-    let lx = this.x - BONUS_HEIGHT/2;
-    let rx = this.x + BONUS_HEIGHT/2;
+    let lx = this.x - BONUS_HEIGHT / 2;
+    let rx = this.x + BONUS_HEIGHT / 2;
 
-    let plx = this.#paddle.x - PADDLE_WIDTH / 2;
-    let prx = this.#paddle.x + PADDLE_WIDTH / 2;
+    let plx = this.#paddle.getLeftX();
+    let prx = this.#paddle.getRightX();
 
     let dz = Math.sqrt((this.z - this.#paddle.z) * (this.z - this.#paddle.z));
     if (this.isAlive && dz < 1 && (lx <= prx && rx >= plx)) {
@@ -724,7 +804,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat2"),
         score: 10,
         probability: 5,
-        callback: this.noBonus.bind(this)
+        callback: this.bonusGrow.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
@@ -810,13 +890,18 @@ brickType.material.diffuseTexture.vScale = 1;*/
     this.#ball = ball;
   }
 
+  noBonus() {
+    console.log("bonus todo");
+  }
 
   bonusSlow() {
     this.#ball.slowDown(true);
   }
 
-  noBonus() {
-    console.log("bonus todo");
+  bonusGrow() {
+    this.#paddle.grow(true);
+    playSound(SoundsFX.BONUS_GROW);
+
   }
 
   bonusLife() {
@@ -848,6 +933,15 @@ brickType.material.diffuseTexture.vScale = 1;*/
 
   loadLevel() {
     this.reset();
+
+  }
+
+  randomLaunch(x, y, z) {
+
+    //20 %
+    if (getRandomInt(100) < 109) {
+      this.launch(x, y, z);
+    }
 
   }
 
@@ -883,7 +977,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
         filteredArray.push(bonus);
       else {
         //On supprime
-        bonus.destroy();    
+        bonus.destroy();
         this.#iLiveBonuses--;
       }
     }
@@ -1437,7 +1531,7 @@ class BreackOut {
     this.#inputController = new InputController(this.#engine, this.#scene, this.#canvas);
     this.#brickManager = new BrickManager(this.#scene);
 
-    this.#paddle = new Paddle(GAME_AREA_WIDTH / 2, 0, BASE_Z_PADDLE, this.#inputController);
+    this.#paddle = new Paddle(GAME_AREA_WIDTH / 2, 0, BASE_Z_PADDLE, this.#inputController, this.#scene);
     this.#bonusManager = new BonusManager(this.#scene, this.#paddle);
 
     this.#ball = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager);
@@ -1648,10 +1742,11 @@ class BreackOut {
       const brickTouchedSoundData1 = this.#assetsManager.addBinaryFileTask("brickTouchedSound1", brickTouchedSoundUrl1);
       const brickTouchedSoundData2 = this.#assetsManager.addBinaryFileTask("brickTouchedSound2", brickTouchedSoundUrl2);
       const hardBrickTouchedSoundData = this.#assetsManager.addBinaryFileTask("hardBrickTouchedSound", hardBrickTouchedSoundUrl);
-      
+
       const paddleTouchedSoundData = this.#assetsManager.addBinaryFileTask("paddleTouchedSound", paddleTouchedSoundUrl);
       const looseSoundData = this.#assetsManager.addBinaryFileTask("looseSound", looseSoundUrl);
       const bonusLifeSoundData = this.#assetsManager.addBinaryFileTask("bonusLife", bonusLifeSoundUrl);
+      const bonusGrowSoundData = this.#assetsManager.addBinaryFileTask("bonusGrow", bonusGrowSoundUrl);
       
 
       this.LoadEntity(
@@ -1687,11 +1782,12 @@ class BreackOut {
         soundsRepo[SoundsFX.BRICK1] = new Sound("brickTouched1", brickTouchedSoundData1.data, this.#scene);
         soundsRepo[SoundsFX.BRICK2] = new Sound("brickTouched2", brickTouchedSoundData2.data, this.#scene);
         soundsRepo[SoundsFX.HARD_BRICK] = new Sound("hardBrickTouched", hardBrickTouchedSoundData.data, this.#scene);
-        
+
         soundsRepo[SoundsFX.PADDLE] = new Sound("paddleTouched", paddleTouchedSoundData.data, this.#scene);
         soundsRepo[SoundsFX.LOOSE] = new Sound("looseSound", looseSoundData.data, this.#scene);
         soundsRepo[SoundsFX.BONUS_LIFE] = new Sound("bonusLife", bonusLifeSoundData.data, this.#scene);
-        
+        soundsRepo[SoundsFX.BONUS_GROW] = new Sound("bonusGrow", bonusGrowSoundData.data, this.#scene);
+
         resolve(true);
       }
 
@@ -1776,7 +1872,7 @@ class BreackOut {
         }
       }
       else if (gameState == States.STATE_GAME_OVER) {
-        
+
         this.launchGameOverAnimation(() => {
           changeGameState(States.STATE_MENU);
         });
@@ -1863,8 +1959,8 @@ class BreackOut {
     currentLevel = 1;
     this.#brickManager.loadLevel();
     this.#ball.reset();
-    this.#bonusManager.reset();        
-        
+    this.#bonusManager.reset();
+
     //this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
     nbLives = START_LIVES;
     if (currentScore > currentHighScore)
