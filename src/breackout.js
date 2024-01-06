@@ -25,6 +25,8 @@ import wallAmbientUrl from "../assets/textures/Metal_Plate_011_SD/Metal_Plate_01
 
 import bonusBaseColorUrl from "../assets/textures/Ice_001_COLOR.jpg";
 
+import paddleBaseColorUrl from "../assets/textures/Metal_Plate_017_basecolor.jpg";
+import paddleNormalUrl from "../assets/textures/Metal_Plate_017_normal.jpg";
 
 import groundBaseColorUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_basecolor.jpg";
 import groundNormalUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_normal.jpg";
@@ -41,7 +43,9 @@ import musicUrl3 from "../assets/musics/Eric Cubizolle - Kain.mp3";
 //import boingSoundUrl from "../assets/sounds/446100__justinvoke__bounce.wav";
 import brickTouchedSoundUrl1 from "../assets/sounds/Arkanoid SFX (7).wav";
 import brickTouchedSoundUrl2 from "../assets/sounds/Arkanoid SFX (8).wav";
+import hardBrickTouchedSoundUrl from "../assets/sounds/hard_brick.mp3";
 import paddleTouchedSoundUrl from "../assets/sounds/Arkanoid SFX (6).wav";
+import bonusLifeSoundUrl from "../assets/sounds/Arkanoid SFX (9).wav";
 import looseSoundUrl from "../assets/sounds/Arkanoid SFX (2).wav";
 
 
@@ -80,7 +84,7 @@ const MAX_VELOCITY = 14;
 
 const BASE_Z_BALL = -30;
 const BALL_RADIUS = 0.75;
-const PADDLE_WIDTH = (30 / 3.0);
+let PADDLE_WIDTH = (30 / 3.0);
 const PADDLE_RADIUS = ((5 / 2) / 3.0);
 const BASE_Z_PADDLE = BASE_Z_BALL - PADDLE_RADIUS * 2;
 const OFF_AREA = BASE_Z_PADDLE - PADDLE_RADIUS * 32;
@@ -89,8 +93,8 @@ const WORLD_MIN_X = -BRICK_WIDTH + (WALLS_THICKNESS / 2) + BALL_RADIUS;
 const WORLD_MAX_X = (GAME_AREA_WIDTH) - (WALLS_THICKNESS / 2) - BALL_RADIUS;
 
 
-const PADDLE_MIN_X = (WORLD_MIN_X + PADDLE_WIDTH / 2) - BALL_RADIUS;
-const PADDLE_MAX_X = (WORLD_MAX_X - PADDLE_WIDTH / 2) + BALL_RADIUS;
+let PADDLE_MIN_X = (WORLD_MIN_X + PADDLE_WIDTH / 2) - BALL_RADIUS;
+let PADDLE_MAX_X = (WORLD_MAX_X - PADDLE_WIDTH / 2) + BALL_RADIUS;
 
 
 const WORLD_MIN_Y = -5;
@@ -133,6 +137,7 @@ let SoundsFX = Object.freeze({
   BRICK2: 1,
   PADDLE: 2,
   LOOSE: 3,
+  BONUS_LIFE: 4,
 })
 
 let soundsRepo = [];
@@ -229,11 +234,16 @@ class Paddle extends Entity {
 
 
     var paddleMaterial = new StandardMaterial("paddleMaterial");
-    //var paddleTexture 
-    paddleMaterial.diffuseColor = new Color3(0.624, 0.784, 0.94);
-    paddleMaterial.emmisiveColor = new Color3(0.196, 0.263, 0.314);
+    var paddleTexture  = new Texture(paddleBaseColorUrl);
+    var paddleNormalTexture  = new Texture(paddleNormalUrl);
+    paddleMaterial.diffuseTexture = paddleTexture;
+    paddleMaterial.bumpTexture = paddleNormalTexture;
+
+    paddleMaterial.diffuseColor = new Color3(1, 1, 1.0);
+    paddleMaterial.emissiveColor = new Color3(0.345, 0.345, 0.354);
     //ballMaterial.bumpTexture = new Texture(rockTextureNormalUrl);
 
+    this.gameObject.material = paddleMaterial;
 
     this.createParticles(lReact, "lReact", new Vector3(0, -1, 0));
     this.createParticles(rReact, "rReact", new Vector3(0, 1, 0));
@@ -496,10 +506,13 @@ class Ball extends Entity {
         else
           this.#comboTouch = 0;
 
-        playSound(getRandomInt(1) + SoundsFX.BRICK1);
         //Bonus ?
         if (brickDestroyed) {
+          playSound(getRandomInt(1) + SoundsFX.BRICK1);
           this.#bonusManager.launch(this.x, this.y, this.z);
+        }
+        else {
+          playSound(SoundsFX.HARD_BRICK);
         }
 
       }
@@ -550,7 +563,7 @@ class BonusObj extends Entity {
   #amountRotZ;
   #amountRotX;
 
-  constructor(bonusType, x, y, z, parent, paddle) {
+  constructor(index, bonusType, x, y, z, parent, paddle) {
     super(x, y, z);
 
     this.#paddle = paddle;
@@ -561,7 +574,7 @@ class BonusObj extends Entity {
     this.callback = bonusType.callback;
 
     // Our built-in 'sphere' shape.
-    this.gameObject = bonusType.model.createInstance(`bonus${this.type}`);
+    this.gameObject = bonusType.model.createInstance(`bonusInstance${index}`);
     this.gameObject.rotation = new Vector3(Math.PI/12, Math.PI/8, Math.PI/2);
     this.gameObject.setParent(parent);
     //this.gameObject.receiveShadows = true;
@@ -661,9 +674,8 @@ class BonusObj extends Entity {
     let dz = Math.sqrt((this.z - this.#paddle.z) * (this.z - this.#paddle.z));
     if (this.isAlive && dz < 1 && (lx <= prx && rx >= plx)) {
       //BONUS !!
-      console.log("TOUCHED BONUS");
       this.isTouched = true;
-      playSound(SoundsFX.PADDLE);
+      //playSound(SoundsFX.PADDLE);
     }
 
   }
@@ -691,66 +703,75 @@ class BonusManager {
 
     bonusesTypeDef = [
       {
-        model: MeshBuilder.CreateCapsule(`bonus0`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel0`, options),
         color: new Color3(0.0, 1, 0.0),                   //VERT
         material: new StandardMaterial("bonusMat0"),
         score: 10,
+        probability: 5,
         callback: this.bonusSlow.bind(this)
       },
       {
-        model: MeshBuilder.CreateCapsule(`bonus1`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel1`, options),
         color: new Color3(1, 0.0, 1.0),                   //VIOLET
         material: new StandardMaterial("bonusMat1"),
         score: 10,
+        probability: 5,
         callback: this.bonusLife.bind(this)
       },
       {
-        model: MeshBuilder.CreateCapsule(`bonus2`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel2`, options),
         color: new Color3(0.0, 0.4, 1),                   //BLEU FONCE
         material: new StandardMaterial("bonusMat2"),
         score: 10,
-        callback: this.bonusSlow.bind(this)
+        probability: 5,
+        callback: this.noBonus.bind(this)
       },
       {
-        model: MeshBuilder.CreateCapsule(`bonus3`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
         color: new Color3(1, 1, 0),                       //JAUNE VIF
         material: new StandardMaterial("bonusMat3"),
         score: 10,
-        callback: this.bonusSlow.bind(this)
+        probability: 5,
+        callback: this.noBonus.bind(this)
       },
       {
-        model: MeshBuilder.CreateCapsule(`bonus4`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
         color: new Color3(1, 0.0, 0.0),                 //ROUGE
         material: new StandardMaterial("bonusMat4"),
         score: 10,
-        callback: this.bonusSlow.bind(this)
+        probability: 5,
+        callback: this.noBonus.bind(this)
       },
       {
-        model: MeshBuilder.CreateCapsule(`bonus5`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
         color: new Color3(1, 1, 1),                     //BLANC
         material: new StandardMaterial("bonusMat5"),
         score: 10,
-        callback: this.bonusSlow.bind(this)
+        probability: 5,
+        callback: this.noBonus.bind(this)
       },
       {
-        model: MeshBuilder.CreateCapsule(`bonus6`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
         color: new Color3(1, 0.6, 0),                   //ORANGE
         material: new StandardMaterial("bonusMat6"),
         score: 10,
+        probability: 5,
         callback: this.noBonus.bind(this)
       },
       {
-        model: MeshBuilder.CreateCapsule(`bonus7`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
         color: new Color3(0, 1.0, 1.0),               //TURQUOISE
         material: new StandardMaterial("bonusMat7"),
         score: 10,
+        probability: 5,
         callback: this.noBonus.bind(this)
       },
       {
-        model: MeshBuilder.CreateCapsule(`bonus8`, options),
+        model: MeshBuilder.CreateCapsule(`bonusModel8`, options),
         color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
         material: new StandardMaterial("bonusMat8"),
         score: 10,
+        probability: 5,
         callback: this.noBonus.bind(this)
       }
     ];
@@ -799,8 +820,10 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   bonusLife() {
-    if (nbLives < MAX_LIVES)
+    if (nbLives < MAX_LIVES) {
       nbLives++;
+      playSound(SoundsFX.BONUS_LIFE);
+    }
   }
 
   init() {
@@ -833,7 +856,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
     //Random for now but need to add some coeff based on levels or brick type
     let type = getRandomInt(bonusesTypeDef.length - 1);
 
-    let unBonus = new BonusObj(bonusesTypeDef[type], x, y, z, this.#parent, this.#paddle)
+    let unBonus = new BonusObj(this.#iLiveBonuses, bonusesTypeDef[type], x, y, z, this.#parent, this.#paddle)
 
     this.#bonuses.push(unBonus);
     this.#iLiveBonuses++;
@@ -860,7 +883,8 @@ brickType.material.diffuseTexture.vScale = 1;*/
         filteredArray.push(bonus);
       else {
         //On supprime
-        bonus.destroy();        
+        bonus.destroy();    
+        this.#iLiveBonuses--;
       }
     }
     this.#bonuses = filteredArray;
@@ -960,70 +984,70 @@ class BrickManager {
 
     bricksTypeDef = [
       {
-        model: MeshBuilder.CreateBox(`brick0`, options),
+        model: MeshBuilder.CreateBox(`brickModel0`, options),
         color: new Color3(0.0, 1, 0.0),                   //VERT
         material: new StandardMaterial("brickMat0"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick1`, options),
+        model: MeshBuilder.CreateBox(`brickModel1`, options),
         color: new Color3(1, 0.0, 1.0),                   //VIOLET
         material: new StandardMaterial("brickMat1"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick2`, options),
+        model: MeshBuilder.CreateBox(`brickModel2`, options),
         color: new Color3(0.0, 0.4, 1),                   //BLEU FONCE
         material: new StandardMaterial("brickMat2"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick3`, options),
+        model: MeshBuilder.CreateBox(`brickModel3`, options),
         color: new Color3(1, 1, 0),                       //JAUNE VIF
         material: new StandardMaterial("brickMat3"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick4`, options),
+        model: MeshBuilder.CreateBox(`brickModel4`, options),
         color: new Color3(1, 0.0, 0.0),                 //ROUGE
         material: new StandardMaterial("brickMat4"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick5`, options),
+        model: MeshBuilder.CreateBox(`brickModel5`, options),
         color: new Color3(1, 1, 1),                     //BLANC
         material: new StandardMaterial("brickMat5"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick6`, options),
+        model: MeshBuilder.CreateBox(`brickModel6`, options),
         color: new Color3(1, 0.6, 0),                   //ORANGE
         material: new StandardMaterial("brickMat6"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick7`, options),
+        model: MeshBuilder.CreateBox(`brickModel7`, options),
         color: new Color3(0, 1.0, 1.0),               //TURQUOISE
         material: new StandardMaterial("brickMat7"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick8`, options),
+        model: MeshBuilder.CreateBox(`brickModel8`, options),
         color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
         material: new StandardMaterial("brickMat8"),
         life: 1,
         score: 10,
       },
       {
-        model: MeshBuilder.CreateBox(`brick9`, options),
+        model: MeshBuilder.CreateBox(`brickModel9`, options),
         color: new Color3(0.6, 0.6, 0.6),             //GRIS
         material: new StandardMaterial("brickMat9"),
         life: 2,
@@ -1200,10 +1224,11 @@ brickType.material.diffuseTexture.vScale = 1;*/
         this.#iLiveBricks--;
         currentScore += this.#bricks[index].score;
 
-        return true;
+        ret = true;
       }
 
     }
+    return ret;
 
   }
 
@@ -1395,7 +1420,7 @@ class BreackOut {
     skyMaterial.lineColor = new Color3(0, 1.0, 1.0);
     skyMaterial.backFaceCulling = false;
 
-    this.#musics[0] = new Sound("music0", musicUrl1, this.#scene, null, { loop: true, autoplay: true, volume: 0.5 });
+    this.#musics[0] = new Sound("music0", musicUrl1, this.#scene, null, { loop: true, autoplay: true, volume: 0.4 });
     /*  this.#musics[1] = new Sound("music1", musicUrl2, this.#scene, null, { loop: true, autoplay: false });
       this.#musics[2] = new Sound("music2", musicUrl3, this.#scene, null, { loop: true, autoplay: false });
       this.#musics[3] = new Sound("music3", musicUrl4, this.#scene, null, { loop: true, autoplay: false });
@@ -1622,9 +1647,12 @@ class BreackOut {
       //      const boingSoundData = this.#assetsManager.addBinaryFileTask("boingSound", boingSoundUrl);
       const brickTouchedSoundData1 = this.#assetsManager.addBinaryFileTask("brickTouchedSound1", brickTouchedSoundUrl1);
       const brickTouchedSoundData2 = this.#assetsManager.addBinaryFileTask("brickTouchedSound2", brickTouchedSoundUrl2);
+      const hardBrickTouchedSoundData = this.#assetsManager.addBinaryFileTask("hardBrickTouchedSound", hardBrickTouchedSoundUrl);
+      
       const paddleTouchedSoundData = this.#assetsManager.addBinaryFileTask("paddleTouchedSound", paddleTouchedSoundUrl);
       const looseSoundData = this.#assetsManager.addBinaryFileTask("looseSound", looseSoundUrl);
-
+      const bonusLifeSoundData = this.#assetsManager.addBinaryFileTask("bonusLife", bonusLifeSoundUrl);
+      
 
       this.LoadEntity(
         "room",
@@ -1656,10 +1684,14 @@ class BreackOut {
         //var sphereEmitter = explosionParticleSystem.createSphereEmitter(1.0);
 
         //soundsRepo[SoundsFX.BOING] = new Sound("boingSound", boingSoundData.data, this.#scene);
-        soundsRepo[SoundsFX.BRICK1] = new Sound("brickTouchedSound1", brickTouchedSoundData1.data, this.#scene);
-        soundsRepo[SoundsFX.BRICK2] = new Sound("brickTouchedSound2", brickTouchedSoundData2.data, this.#scene);
-        soundsRepo[SoundsFX.PADDLE] = new Sound("paddleTouchedSound", paddleTouchedSoundData.data, this.#scene);
+        soundsRepo[SoundsFX.BRICK1] = new Sound("brickTouched1", brickTouchedSoundData1.data, this.#scene);
+        soundsRepo[SoundsFX.BRICK2] = new Sound("brickTouched2", brickTouchedSoundData2.data, this.#scene);
+        soundsRepo[SoundsFX.HARD_BRICK] = new Sound("hardBrickTouched", hardBrickTouchedSoundData.data, this.#scene);
+        
+        soundsRepo[SoundsFX.PADDLE] = new Sound("paddleTouched", paddleTouchedSoundData.data, this.#scene);
         soundsRepo[SoundsFX.LOOSE] = new Sound("looseSound", looseSoundData.data, this.#scene);
+        soundsRepo[SoundsFX.BONUS_LIFE] = new Sound("bonusLife", bonusLifeSoundData.data, this.#scene);
+        
         resolve(true);
       }
 
