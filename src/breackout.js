@@ -4,7 +4,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera, PrecisionDate } from "@babylonjs/core";
+import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera, PrecisionDate, VirtualJoystick, GamepadManager } from "@babylonjs/core";
 
 
 
@@ -23,8 +23,8 @@ import wallBaseColorUrl from "../assets/textures/Metal_Plate_011_SD/Metal_Plate_
 import wallNormalUrl from "../assets/textures/Metal_Plate_011_SD/Metal_Plate_011_normal.jpg";
 import wallAmbientUrl from "../assets/textures/Metal_Plate_011_SD/Metal_Plate_011_ambientOcclusion.jpg";
 
-import brickBaseColorUrl from "../assets/textures/Ice_001_COLOR.jpg";
-//import brickNormalUrl from "../assets/textures/Ice_001_NRM.jpg";
+import bonusBaseColorUrl from "../assets/textures/Ice_001_COLOR.jpg";
+
 
 import groundBaseColorUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_basecolor.jpg";
 import groundNormalUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_normal.jpg";
@@ -53,22 +53,22 @@ import { AdvancedDynamicTexture, Button, Control, TextBlock } from "@babylonjs/g
 import "./levels";
 import { levelsDef } from "./levels";
 
-const bricksRows = 25;
-const bricksCols = 13;
-const brickWidth = (18.0 / 3.0);
-const brickHeight = (7.0 / 3.0);
-const brickPaddingX = (1.0 / 3.0);
-const brickPaddingZ = (1.0 / 3.0);
+const BRICKS_ROWS = 25;
+const BRICKS_COLS = 13;
+const BRICK_WIDTH = (18.0 / 3.0);
+const BRICK_DEPTH = (7.0 / 3.0);
+const BRICK_PADDING_X = (1.0 / 3.0);
+const BRICK_PADDING_Z = (1.0 / 3.0);
 
-let bricksType = [];
+let bricksTypeDef = [];
 
 
-const largeur = (bricksCols * brickWidth);
-const profondeur = (bricksRows * brickHeight);
-const profondeurWalls = profondeur + 45;
+const GAME_AREA_WIDTH = (BRICKS_COLS * BRICK_WIDTH);
+const GAME_AREA_DEPTH = (BRICKS_ROWS * BRICK_DEPTH);
+const WALLS_DEPTH = GAME_AREA_DEPTH + 45;
 
-const hauteurWalls = 5;
-const epaisseurWalls = 2;
+const WALLS_HEIGHT = 5;
+const WALLS_THICKNESS = 2;
 
 const BALL_SPEED_FACTOR = 2.2;
 
@@ -78,31 +78,37 @@ const PADDLE_ACC_X = 0.7;
 const MAX_VELOCITY = 14;
 
 
-const baseZBall = -30;
-const ballRadius = 0.75;
-const paddleWidth = (30 / 3.0);
-const paddleRadius = ((5 / 2) / 3.0);
-const baseZPaddle = baseZBall - paddleRadius * 2;
-const offArea = baseZPaddle - paddleRadius * 32;
+const BASE_Z_BALL = -30;
+const BALL_RADIUS = 0.75;
+const PADDLE_WIDTH = (30 / 3.0);
+const PADDLE_RADIUS = ((5 / 2) / 3.0);
+const BASE_Z_PADDLE = BASE_Z_BALL - PADDLE_RADIUS * 2;
+const OFF_AREA = BASE_Z_PADDLE - PADDLE_RADIUS * 32;
 
-const WORLD_MIN_X = -brickWidth + (epaisseurWalls / 2) + ballRadius;
-const WORLD_MAX_X = (largeur) - (epaisseurWalls / 2) - ballRadius;
+const WORLD_MIN_X = -BRICK_WIDTH + (WALLS_THICKNESS / 2) + BALL_RADIUS;
+const WORLD_MAX_X = (GAME_AREA_WIDTH) - (WALLS_THICKNESS / 2) - BALL_RADIUS;
 
 
-const PADDLE_MIN_X = (WORLD_MIN_X + paddleWidth / 2) - ballRadius;
-const PADDLE_MAX_X = (WORLD_MAX_X - paddleWidth / 2) + ballRadius;
+const PADDLE_MIN_X = (WORLD_MIN_X + PADDLE_WIDTH / 2) - BALL_RADIUS;
+const PADDLE_MAX_X = (WORLD_MAX_X - PADDLE_WIDTH / 2) + BALL_RADIUS;
 
 
 const WORLD_MIN_Y = -5;
 const WORLD_MAX_Y = 5;
 
-const WORLD_MIN_Z = offArea;
-const WORLD_MAX_Z = profondeur;
+const WORLD_MIN_Z = OFF_AREA;
+const WORLD_MAX_Z = GAME_AREA_DEPTH;
 
 const BALL_LAUNCH_VX = 0.15;
 const BALL_LAUNCH_VZ = 0.5;
 
-const StartButtonMeshTarget = "Object_351";
+const BONUS_VX = 0;
+const BONUS_VZ = -0.5;
+
+const START_LIVES = 6;
+const MAX_LIVES = 12;
+
+const START_BUTTON_MESH_TARGET = "Object_351";
 //const StartButtonMeshTarget = "panel_plate.001_140";
 
 let debugMaterial;
@@ -111,8 +117,6 @@ let explosionParticleSystem;
 let shadowGenerator;
 
 
-const START_LIVES = 100;
-const MAX_LIVES = 5;
 let nbLives = START_LIVES;
 let currentScore = 0;
 let currentHighScore = 0;
@@ -166,6 +170,13 @@ class Entity {
     this.gameObject = null;
   }
 
+  setPosition(x, y, z) {
+    this.x = x || 0;
+    this.y = y || 0;
+    this.z = z || 0;
+    this.updatePosition();
+  }
+
   updatePosition() {
     this.gameObject.position = new Vector3(this.x, this.y, this.z);
   }
@@ -193,7 +204,7 @@ class Paddle extends Entity {
     super(x, y, z);
 
     this.#inputController = inputController;
-    this.gameObject = new MeshBuilder.CreateCapsule("capsule", { radius: paddleRadius, capSubdivisions: 8, subdivisions: 1, tessellation: 8, height: paddleWidth, orientation: Vector3.Left() });
+    this.gameObject = new MeshBuilder.CreateCapsule("capsule", { radius: PADDLE_RADIUS, capSubdivisions: 8, subdivisions: 1, tessellation: 8, height: PADDLE_WIDTH, orientation: Vector3.Left() });
     shadowGenerator.addShadowCaster(this.gameObject);
 
     let trailMaterial = new StandardMaterial('reactMat');
@@ -203,15 +214,15 @@ class Paddle extends Entity {
     trailMaterial.specularColor = new Color3(0.9, 0.6, 0.6);
 
 
-    let lReact = new MeshBuilder.CreateCylinder("lReact", { height: paddleRadius + 0.6, diameter: paddleRadius * 2.5 });
-    lReact.position.x = -paddleWidth / 3;
+    let lReact = new MeshBuilder.CreateCylinder("lReact", { height: PADDLE_RADIUS + 0.6, diameter: PADDLE_RADIUS * 2.5 });
+    lReact.position.x = -PADDLE_WIDTH / 3;
     lReact.rotation.z = -Math.PI / 2;
 
     lReact.material = trailMaterial;
     lReact.setParent(this.gameObject);
 
-    let rReact = new MeshBuilder.CreateCylinder("rReact", { height: paddleRadius + 0.6, diameter: paddleRadius * 2.5 });
-    rReact.position.x = paddleWidth / 3;
+    let rReact = new MeshBuilder.CreateCylinder("rReact", { height: PADDLE_RADIUS + 0.6, diameter: PADDLE_RADIUS * 2.5 });
+    rReact.position.x = PADDLE_WIDTH / 3;
     rReact.rotation.z = -Math.PI / 2;
     rReact.material = trailMaterial;
     rReact.setParent(this.gameObject);
@@ -278,12 +289,14 @@ class Paddle extends Entity {
     else
       this.vx = 0;
 
-    if (this.#inputController.inputMap["ArrowLeft"]) {
+
+    console.log(this.#inputController.xpos);
+    if (this.#inputController.inputMap["ArrowLeft"] || this.#inputController.moveX < 0) {
       this.vx -= PADDLE_ACC_X;
       if (this.vx < -MAX_VELOCITY)
         this.vx = -MAX_VELOCITY;
     }
-    else if (this.#inputController.inputMap["ArrowRight"]) {
+    else if (this.#inputController.inputMap["ArrowRight"] || this.#inputController.moveX > 0) {
       this.vx += PADDLE_ACC_X;
       if (this.vx > MAX_VELOCITY)
         this.vx = MAX_VELOCITY;
@@ -310,19 +323,25 @@ class Paddle extends Entity {
 class Ball extends Entity {
 
   #brickManager;
+  #bonusManager;
   #paddle;
   #trail;
   #comboTouch;
   #currentTurbo;
   #lastDateTouch;
+  #temporarySpeedFactor;
+  #temporarySlowEndTime;
 
-  constructor(x, y, z, brickManager, paddle) {
+  constructor(x, y, z, brickManager, paddle, bonusManager) {
     super(x, y, z);
     this.#brickManager = brickManager;
     this.#paddle = paddle;
+    this.#bonusManager = bonusManager;
     this.#comboTouch = 0;
     this.#currentTurbo = 0;
     this.#lastDateTouch = 0;
+    this.#temporarySpeedFactor = 1.0;
+    this.#temporarySlowEndTime = 0;
 
     var ballMaterial = new StandardMaterial("ballMaterial");
     ballMaterial.diffuseColor = new Color3(1, 1, 1);
@@ -332,7 +351,7 @@ class Ball extends Entity {
 
     const options = {
       segments: 16,
-      diameter: ballRadius * 2
+      diameter: BALL_RADIUS * 2
     };
 
     // Our built-in 'sphere' shape.
@@ -363,6 +382,7 @@ class Ball extends Entity {
     this.vx = vx;
     this.vy = vy;
     this.vz = vz;
+    this.#temporarySpeedFactor = 1.0;
     this.isAlive = true;
   }
 
@@ -372,17 +392,37 @@ class Ball extends Entity {
     this.#lastDateTouch = 0;
     this.x = this.#paddle.x;
     this.y = 0;
-    this.z = baseZBall;
+    this.z = BASE_Z_BALL;
     this.vx = 0;
     this.vy = 0;
     this.vz = 0;
+    this.#temporarySpeedFactor = 1.0;
     this.isAlive = false;
     this.updatePosition();
   }
 
+  slowDown(bSlowDown) {
+    if (bSlowDown) {
+
+      this.#temporarySlowEndTime = performance.now() + 5000;
+      this.#temporarySpeedFactor = 0.5;
+    }
+    else {
+      this.#temporarySlowEndTime = 0;
+      this.#temporarySpeedFactor = 1.0;
+    }
+  }
+
+  glue() {
+
+  }
+
   update() {
 
-    this.applyVelocities(BALL_SPEED_FACTOR + this.#currentTurbo);
+    if (this.#temporarySlowEndTime > 0 && this.#temporarySlowEndTime < performance.now())
+      this.slowDown(false);
+
+    this.applyVelocities(this.#temporarySpeedFactor * (BALL_SPEED_FACTOR + this.#currentTurbo));
 
     //Walls collisions
     if ((this.x > WORLD_MAX_X) || (this.x < WORLD_MIN_X)) {
@@ -408,9 +448,9 @@ class Ball extends Entity {
     if (this.isAlive) {
 
       //Debug
-      let xpos = Math.floor((this.x + brickWidth / 2) / brickWidth);
-      let zpos = Math.floor((this.z + brickHeight / 2) / brickHeight);
-      debugBox.position = new Vector3(xpos * brickWidth, 0, zpos * brickHeight);
+      let xpos = Math.floor((this.x + BRICK_WIDTH / 2) / BRICK_WIDTH);
+      let zpos = Math.floor((this.z + BRICK_DEPTH / 2) / BRICK_DEPTH);
+      debugBox.position = new Vector3(xpos * BRICK_WIDTH, 0, zpos * BRICK_DEPTH);
       debugBox.size = 2;
 
       //Bricks collisions
@@ -445,7 +485,7 @@ class Ball extends Entity {
           this.vz = -this.vz;
 
 
-        this.#brickManager.touchBrickAt(this.x, this.y, this.z);
+        let brickDestroyed = this.#brickManager.touchBrickAt(this.x, this.y, this.z);
         let currentDate = performance.now();
         let delta = currentDate - this.#lastDateTouch;
         this.#lastDateTouch = currentDate;
@@ -456,8 +496,12 @@ class Ball extends Entity {
         else
           this.#comboTouch = 0;
 
-
         playSound(getRandomInt(1) + SoundsFX.BRICK1);
+        //Bonus ?
+        if (brickDestroyed) {
+          this.#bonusManager.launch(this.x, this.y, this.z);
+        }
+
       }
 
       //Check collisions avec paddle
@@ -469,17 +513,17 @@ class Ball extends Entity {
   }
 
   checkPaddleCollision() {
-    let lx = this.x - ballRadius;
-    let rx = this.x + ballRadius;
+    let lx = this.x - BALL_RADIUS;
+    let rx = this.x + BALL_RADIUS;
 
-    let plx = this.#paddle.x - paddleWidth / 2;
-    let prx = this.#paddle.x + paddleWidth / 2;
+    let plx = this.#paddle.x - PADDLE_WIDTH / 2;
+    let prx = this.#paddle.x + PADDLE_WIDTH / 2;
 
     let dz = Math.sqrt((this.z - this.#paddle.z) * (this.z - this.#paddle.z));
-    if (this.isAlive && this.z < (this.#paddle.z + paddleRadius) && dz < 1 && (lx >= plx && rx <= prx)) {
+    if (this.isAlive && this.z < (this.#paddle.z + PADDLE_RADIUS) && dz < 1 && (lx <= prx && rx >= plx)) {
       this.#comboTouch = 0;
       this.vz = -this.vz;
-      this.z = this.#paddle.z + paddleRadius;
+      this.z = this.#paddle.z + PADDLE_RADIUS;
       let distanceFromPaddle = (this.x - this.#paddle.x);
       this.vx = distanceFromPaddle * 0.12;
       playSound(SoundsFX.PADDLE);
@@ -490,11 +534,354 @@ class Ball extends Entity {
 
 
 
+const BONUS_RADIUS = 1.2;
+const BONUS_HEIGHT = 5;
+const BONUS_SLOW = 0;
+
+let bonusesTypeDef = [];
+
+class BonusObj extends Entity {
+
+  #paddle;
+  type = 0;
+  isAlive = true;
+  isTouched = false;
+  #explosionParticleSystem
+  #amountRotZ;
+  #amountRotX;
+
+  constructor(bonusType, x, y, z, parent, paddle) {
+    super(x, y, z);
+
+    this.#paddle = paddle;
+    this.type = bonusType.type;
+    this.isAlive = true;
+    this.isTouched = false;
+    this.score = bonusType.score;
+    this.callback = bonusType.callback;
+
+    // Our built-in 'sphere' shape.
+    this.gameObject = bonusType.model.createInstance(`bonus${this.type}`);
+    this.gameObject.rotation = new Vector3(Math.PI/12, Math.PI/8, Math.PI/2);
+    this.gameObject.setParent(parent);
+    //this.gameObject.receiveShadows = true;
+    shadowGenerator.addShadowCaster(this.gameObject, true);
+
+    this.updatePosition();
+  }
+
+  destroy() {
+    this.gameObject.dispose();
+  }
+
+  launch(vx, vy, vz) {
+    this.vx = vx;
+    this.vy = vy;
+    this.vz = vz;
+    this.isAlive = true;
+    this.isTouched = false;
+    this.#amountRotX = Scalar.RandomRange(0.05, 0.25);
+    this.#amountRotZ = Scalar.RandomRange(-0.05, 0.05);
+  }
+
+  reset() {
+    this.x = 0;
+    this.y = 0;
+    this.z = 0;
+    this.vx = 0;
+    this.vy = 0;
+    this.vz = 0;
+    this.isAlive = false;
+    this.isTouched = false;
+    this.updatePosition();
+  }
+
+
+  setVisible(bVisible) {
+    this.gameObject.setEnabled(bVisible);
+  }
+
+
+  explode() {
+    //    this.#explosionParticleSystem.start();
+  }
+
+  update() {
+
+    if (this.isAlive) {
+
+
+      this.applyVelocities();
+      this.gameObject.rotation.x += this.#amountRotX;
+      this.gameObject.rotation.z += this.#amountRotZ;
+
+      //Walls collisions
+      if ((this.x > WORLD_MAX_X) || (this.x < WORLD_MIN_X)) {
+        this.vx = -this.vx;
+        //playSound(SoundsFX.BOING);
+      }
+
+      if ((this.y > WORLD_MAX_Y) || (this.y < WORLD_MIN_Y)) {
+        this.vy = -this.vy;
+        //playSound(SoundsFX.BOING);
+      }
+
+      if ((this.z > WORLD_MAX_Z)) {
+        //playSound(SoundsFX.BOING);
+        this.vz = -this.vz;
+      }
+      else if (this.z < WORLD_MIN_Z) {
+        this.isAlive = false;
+        //playSound(SoundsFX.LOOSE);
+      }
+
+
+      if (this.isAlive) {
+
+        //Check collisions avec paddle
+        this.checkPaddleCollision();
+      }
+    }
+
+    this.updatePosition();
+  }
+
+  takeBonus() {
+    this.isAlive = false;
+    this.isTouched = false;
+  }
+
+  checkPaddleCollision() {
+    let lx = this.x - BONUS_HEIGHT/2;
+    let rx = this.x + BONUS_HEIGHT/2;
+
+    let plx = this.#paddle.x - PADDLE_WIDTH / 2;
+    let prx = this.#paddle.x + PADDLE_WIDTH / 2;
+
+    let dz = Math.sqrt((this.z - this.#paddle.z) * (this.z - this.#paddle.z));
+    if (this.isAlive && dz < 1 && (lx <= prx && rx >= plx)) {
+      //BONUS !!
+      console.log("TOUCHED BONUS");
+      this.isTouched = true;
+      playSound(SoundsFX.PADDLE);
+    }
+
+  }
+
+}
+
+class BonusManager {
+
+  #scene;
+  #paddle;
+
+  #parent;
+  #ball;
+  #bonuses = [];
+  #iLiveBonuses = 0;
+
+  constructor(scene, paddle) {
+    this.#scene = scene;
+    this.#paddle = paddle;
+
+    const options = {
+      height: BONUS_HEIGHT,
+      radius: BONUS_RADIUS,
+    };
+
+    bonusesTypeDef = [
+      {
+        model: MeshBuilder.CreateCapsule(`bonus0`, options),
+        color: new Color3(0.0, 1, 0.0),                   //VERT
+        material: new StandardMaterial("bonusMat0"),
+        score: 10,
+        callback: this.bonusSlow.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonus1`, options),
+        color: new Color3(1, 0.0, 1.0),                   //VIOLET
+        material: new StandardMaterial("bonusMat1"),
+        score: 10,
+        callback: this.bonusLife.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonus2`, options),
+        color: new Color3(0.0, 0.4, 1),                   //BLEU FONCE
+        material: new StandardMaterial("bonusMat2"),
+        score: 10,
+        callback: this.bonusSlow.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonus3`, options),
+        color: new Color3(1, 1, 0),                       //JAUNE VIF
+        material: new StandardMaterial("bonusMat3"),
+        score: 10,
+        callback: this.bonusSlow.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonus4`, options),
+        color: new Color3(1, 0.0, 0.0),                 //ROUGE
+        material: new StandardMaterial("bonusMat4"),
+        score: 10,
+        callback: this.bonusSlow.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonus5`, options),
+        color: new Color3(1, 1, 1),                     //BLANC
+        material: new StandardMaterial("bonusMat5"),
+        score: 10,
+        callback: this.bonusSlow.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonus6`, options),
+        color: new Color3(1, 0.6, 0),                   //ORANGE
+        material: new StandardMaterial("bonusMat6"),
+        score: 10,
+        callback: this.noBonus.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonus7`, options),
+        color: new Color3(0, 1.0, 1.0),               //TURQUOISE
+        material: new StandardMaterial("bonusMat7"),
+        score: 10,
+        callback: this.noBonus.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonus8`, options),
+        color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
+        material: new StandardMaterial("bonusMat8"),
+        score: 10,
+        callback: this.noBonus.bind(this)
+      }
+    ];
+
+    this.#parent = new TransformNode("bonuses");
+
+    for (let bonusesType of bonusesTypeDef) {
+      bonusesType.model.receiveShadows = false;
+      bonusesType.model.isVisible = false;
+
+      bonusesType.material.diffuseTexture = new Texture(bonusBaseColorUrl);
+      /*
+brickType.material.diffuseTexture = new Texture(brickBaseColorUrl);
+brickType.material.diffuseTexture.uScale = 1;
+brickType.material.diffuseTexture.vScale = 1;*/
+      bonusesType.material.diffuseColor = bonusesType.color;
+
+      /*brickType.material.emissiveTexture = new Texture(brickNormalUrl);
+      brickType.material.emissiveTexture.uScale = 1;
+      brickType.material.emissiveTexture.vScale = 1;
+      */
+      bonusesType.material.emissiveColor = bonusesType.color;
+
+      bonusesType.model.material = bonusesType.material;
+    }
+
+
+    /*brickMaterial.bumpTexture = new Texture(brickNormalUrl);
+    brickMaterial.bumpTexture.uScale = 1;
+    brickMaterial.bumpTexture.vScale = 1;
+*/
+    this.init();
+  }
+
+  setBallObj(ball) {
+    this.#ball = ball;
+  }
+
+
+  bonusSlow() {
+    this.#ball.slowDown(true);
+  }
+
+  noBonus() {
+    console.log("bonus todo");
+  }
+
+  bonusLife() {
+    if (nbLives < MAX_LIVES)
+      nbLives++;
+  }
+
+  init() {
+
+
+  }
+
+  reset() {
+    for (let i = 0; i < this.#bonuses.length; i++) {
+      let bonus = this.#bonuses[i];
+      if (bonus) {
+        bonus.isAlive = false;
+        if (bonus.gameObject) {
+          bonus.setVisible(false);
+          bonus.gameObject.dispose();
+        }
+      }
+    }
+    this.#bonuses = [];
+    this.#iLiveBonuses = 0;
+  }
+
+  loadLevel() {
+    this.reset();
+
+  }
+
+  launch(x, y, z) {
+
+    //Random for now but need to add some coeff based on levels or brick type
+    let type = getRandomInt(bonusesTypeDef.length - 1);
+
+    let unBonus = new BonusObj(bonusesTypeDef[type], x, y, z, this.#parent, this.#paddle)
+
+    this.#bonuses.push(unBonus);
+    this.#iLiveBonuses++;
+
+    unBonus.launch(BONUS_VX, 0, BONUS_VZ);
+  }
+
+  update() {
+
+    for (let bonus of this.#bonuses) {
+      if (bonus.isAlive) {
+        bonus.update();
+        if (bonus.isTouched) {
+          bonus.takeBonus();
+          //On applique
+          bonus.callback();
+          //...
+        }
+      }
+    }
+    let filteredArray = [];
+    for (let bonus of this.#bonuses) {
+      if (bonus.isAlive)
+        filteredArray.push(bonus);
+      else {
+        //On supprime
+        bonus.destroy();        
+      }
+    }
+    this.#bonuses = filteredArray;
+
+  }
+
+  draw() {
+
+
+  }
+
+
+}
+
+
+
 
 class BrickObj extends Entity {
 
   type = 0;
-  bAlive = true;
+  isAlive = true;
   life = 1;
   #explosionParticleSystem
 
@@ -503,10 +890,10 @@ class BrickObj extends Entity {
 
 
     if (brickTypeObj == null) {
-      this.bAlive = false;
+      this.isAlive = false;
     }
     else {
-      this.type = Scalar.Clamp(Math.round(brickTypeObj.type), 0, (bricksType.length - 1));
+      this.type = brickTypeObj.type;
       this.life = brickTypeObj.life;
       this.score = brickTypeObj.score;
       // Our built-in 'sphere' shape.
@@ -536,7 +923,7 @@ class BrickObj extends Entity {
    * @returns true if brick is destroyed
    */
   touch() {
-    if (this.bAlive) {
+    if (this.isAlive) {
       if (this.life > 0) {
         this.life--;
         if (this.life == 0)
@@ -558,21 +945,20 @@ class BrickManager {
   #scene;
 
   #parent;
-  #ball;
-  #bricks = new Array(bricksRows * bricksCols);
+  #bricks = new Array(BRICKS_ROWS * BRICKS_COLS);
   #iLiveBricks = 0;
 
   constructor(scene) {
     this.#scene = scene;
 
     const options = {
-      width: brickWidth - brickPaddingX,
+      width: BRICK_WIDTH - BRICK_PADDING_X,
       height: 2,
-      depth: brickHeight - brickPaddingZ,
+      depth: BRICK_DEPTH - BRICK_PADDING_Z,
       wrap: true,
     };
 
-    bricksType = [
+    bricksTypeDef = [
       {
         model: MeshBuilder.CreateBox(`brick0`, options),
         color: new Color3(0.0, 1, 0.0),                   //VERT
@@ -647,7 +1033,7 @@ class BrickManager {
 
     this.#parent = new TransformNode("bricks");
 
-    for (let brickType of bricksType) {
+    for (let brickType of bricksTypeDef) {
       brickType.model.receiveShadows = false;
       brickType.model.isVisible = false;
 
@@ -675,6 +1061,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
     this.init();
   }
 
+
   init() {
 
 
@@ -687,7 +1074,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
     for (let i = 0; i < this.#bricks.length; i++) {
       let brick = this.#bricks[i];
       if (brick) {
-        brick.bAlive = false;
+        brick.isAlive = false;
         if (brick.gameObject) {
           brick.setVisible(false);
           brick.gameObject.dispose();
@@ -708,17 +1095,17 @@ brickType.material.diffuseTexture.vScale = 1;*/
 
     let currentLevelMatrix = levelsDef[levelToLoad - 1];
 
-    for (let j = 0; j < bricksRows; j++) {
-      for (let i = 0; i < bricksCols; i++) {
-        let index = j * bricksCols + i;
-        let x = i * brickWidth;
+    for (let j = 0; j < BRICKS_ROWS; j++) {
+      for (let i = 0; i < BRICKS_COLS; i++) {
+        let index = j * BRICKS_COLS + i;
+        let x = i * BRICK_WIDTH;
         let y = 0;
-        let z = j * brickHeight;
-        let car = currentLevelMatrix[(bricksRows - 1) - j].charAt(i);
+        let z = j * BRICK_DEPTH;
+        let car = currentLevelMatrix[(BRICKS_ROWS - 1) - j].charAt(i);
         if (car === " ") {
           let uneBrique = new BrickObj(index, null, x, y, z, this.#parent);
           this.#bricks[index] = uneBrique;
-          this.#bricks[index].bAlive = false;
+          this.#bricks[index].isAlive = false;
         }
         else {
 
@@ -729,12 +1116,12 @@ brickType.material.diffuseTexture.vScale = 1;*/
             type = 0;
           }
 
-
-          let uneBrique = new BrickObj(index, bricksType[type], x, y, z, this.#parent);
+          type = Scalar.Clamp(Math.round(type), 0, (bricksTypeDef.length - 1));
+          let uneBrique = new BrickObj(index, bricksTypeDef[type], x, y, z, this.#parent);
 
 
           this.#bricks[index] = uneBrique;
-          this.#bricks[index].bAlive = true;
+          this.#bricks[index].isAlive = true;
           this.#iLiveBricks++;
         }
       }
@@ -744,7 +1131,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
             for (let i = 0; i < bricksCols; i++) {
               let index = j * bricksCols + i;
               let brick = this.#bricks[index];
-              brick.bAlive = true;
+              brick.isAlive = true;
               brick.setVisible(true);
               this.#iLiveBricks++;
               }
@@ -760,16 +1147,16 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   getBrickCol(x) {
-    return Math.floor((x + brickWidth / 2) / brickWidth);
+    return Math.floor((x + BRICK_WIDTH / 2) / BRICK_WIDTH);
   }
 
   getBrickRow(z) {
-    return Math.floor((z + brickHeight / 2) / brickHeight);
+    return Math.floor((z + BRICK_DEPTH / 2) / BRICK_DEPTH);
   }
 
   getBrickAtRowCol(xpos, zpos) {
-    if (xpos >= 0 && xpos < bricksCols && zpos >= 0 && zpos < bricksRows) {
-      let index = zpos * bricksCols + xpos;
+    if (xpos >= 0 && xpos < BRICKS_COLS && zpos >= 0 && zpos < BRICKS_ROWS) {
+      let index = zpos * BRICKS_COLS + xpos;
       if (index >= 0 && index < this.#bricks.length)
         return this.#bricks[index];
     }
@@ -777,40 +1164,43 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   isBrickAtRowCol(xpos, zpos) {
-    if (xpos >= 0 && xpos < bricksCols && zpos >= 0 && zpos < bricksRows) {
-      let index = zpos * bricksCols + xpos;
+    if (xpos >= 0 && xpos < BRICKS_COLS && zpos >= 0 && zpos < BRICKS_ROWS) {
+      let index = zpos * BRICKS_COLS + xpos;
       if (index >= 0 && index < this.#bricks.length)
-        return this.#bricks[index].bAlive;
+        return this.#bricks[index].isAlive;
     }
     return false;
   }
 
   getBrickAt(x, y, z) {
-    let xpos = Math.floor((x + brickWidth / 2) / brickWidth);
-    let zpos = Math.floor((z + brickHeight / 2) / brickHeight);
-    if (xpos >= 0 && xpos < bricksCols && zpos >= 0 && zpos < bricksRows) {
-      let index = zpos * bricksCols + xpos;
+    let xpos = Math.floor((x + BRICK_WIDTH / 2) / BRICK_WIDTH);
+    let zpos = Math.floor((z + BRICK_DEPTH / 2) / BRICK_DEPTH);
+    if (xpos >= 0 && xpos < BRICKS_COLS && zpos >= 0 && zpos < BRICKS_ROWS) {
+      let index = zpos * BRICKS_COLS + xpos;
       if (index >= 0 && index < this.#bricks.length)
-        return this.#bricks[index].bAlive;
+        return this.#bricks[index].isAlive;
     }
     return false;
   }
 
   touchBrickAt(x, y, z) {
-    let xpos = Math.floor((x + brickWidth / 2) / brickWidth);
-    let zpos = Math.floor((z + brickHeight / 2) / brickHeight);
-    let index = zpos * bricksCols + xpos;
-    if (index >= 0 && index < this.#bricks.length && this.#bricks[index].bAlive) {
+    let ret = false;
+
+    let xpos = Math.floor((x + BRICK_WIDTH / 2) / BRICK_WIDTH);
+    let zpos = Math.floor((z + BRICK_DEPTH / 2) / BRICK_DEPTH);
+    let index = zpos * BRICKS_COLS + xpos;
+    if (index >= 0 && index < this.#bricks.length && this.#bricks[index].isAlive) {
 
       if (this.#bricks[index].touch()) {
 
-        this.#bricks[index].bAlive = false;
+        this.#bricks[index].isAlive = false;
 
         this.#bricks[index].setVisible(false);
         this.#bricks[index].explode();
         this.#iLiveBricks--;
         currentScore += this.#bricks[index].score;
 
+        return true;
       }
 
     }
@@ -867,6 +1257,7 @@ class BreackOut {
   #brickManager;
   #bInspector = false;
   #inputController;
+  #bonusManager;
 
   #myMeshes = [];
   #menuUiTexture;
@@ -935,7 +1326,7 @@ class BreackOut {
     debugMaterial = new StandardMaterial("debugMaterial", this.#scene);
     debugMaterial.emissiveColor = Color3.Red();
     debugMaterial.wireframe = true;
-    debugBox = MeshBuilder.CreateBox("debugBox", { size: ballRadius * 2 });
+    debugBox = MeshBuilder.CreateBox("debugBox", { size: BALL_RADIUS * 2 });
     debugBox.material = debugMaterial;
     debugBox.setEnabled(false);
 
@@ -1005,24 +1396,28 @@ class BreackOut {
     skyMaterial.backFaceCulling = false;
 
     this.#musics[0] = new Sound("music0", musicUrl1, this.#scene, null, { loop: true, autoplay: true, volume: 0.5 });
-  /*  this.#musics[1] = new Sound("music1", musicUrl2, this.#scene, null, { loop: true, autoplay: false });
-    this.#musics[2] = new Sound("music2", musicUrl3, this.#scene, null, { loop: true, autoplay: false });
-    this.#musics[3] = new Sound("music3", musicUrl4, this.#scene, null, { loop: true, autoplay: false });
-    this.#musics[4] = new Sound("music4", musicUrl5, this.#scene, null, { loop: true, autoplay: false });
-    this.#musics[5] = new Sound("music5", musicUrl6, this.#scene, null, { loop: true, autoplay: false });
-    this.#musics[6] = new Sound("music6", musicUrl7, this.#scene, null, { loop: true, autoplay: false });
-    this.#musics[7] = new Sound("music7", musicUrl8, this.#scene, null, { loop: true, autoplay: false });
-    */
+    /*  this.#musics[1] = new Sound("music1", musicUrl2, this.#scene, null, { loop: true, autoplay: false });
+      this.#musics[2] = new Sound("music2", musicUrl3, this.#scene, null, { loop: true, autoplay: false });
+      this.#musics[3] = new Sound("music3", musicUrl4, this.#scene, null, { loop: true, autoplay: false });
+      this.#musics[4] = new Sound("music4", musicUrl5, this.#scene, null, { loop: true, autoplay: false });
+      this.#musics[5] = new Sound("music5", musicUrl6, this.#scene, null, { loop: true, autoplay: false });
+      this.#musics[6] = new Sound("music6", musicUrl7, this.#scene, null, { loop: true, autoplay: false });
+      this.#musics[7] = new Sound("music7", musicUrl8, this.#scene, null, { loop: true, autoplay: false });
+      */
     this.#musics
 
     this.#skySphere = MeshBuilder.CreateSphere("skySphere", { diameter: 3000, segments: 32 }, this.#scene);
     this.#skySphere.material = skyMaterial;
 
-    this.#inputController = new InputController(this.#scene);
+    this.#inputController = new InputController(this.#engine, this.#scene, this.#canvas);
     this.#brickManager = new BrickManager(this.#scene);
-    this.#paddle = new Paddle(largeur / 2, 0, baseZPaddle, this.#inputController);
-    this.#ball = new Ball(this.#paddle.x, 0, baseZBall, this.#brickManager, this.#paddle);
 
+    this.#paddle = new Paddle(GAME_AREA_WIDTH / 2, 0, BASE_Z_PADDLE, this.#inputController);
+    this.#bonusManager = new BonusManager(this.#scene, this.#paddle);
+
+    this.#ball = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager);
+    //Ok it*s ugly but it's only a game not a nuclear plant !
+    this.#bonusManager.setBallObj(this.#ball);
 
     changeGameState(States.STATE_PRE_INTRO);
     this.launchPreIntroAnimation(() => {
@@ -1315,7 +1710,10 @@ class BreackOut {
         this.#paddle.update();
         this.#ball.x = this.#paddle.x;
         this.#ball.update();
-        
+
+        //Update bonuses
+        this.#bonusManager.update();
+
         if (now > this.#timeToLaunch) {
           this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
           changeGameState(States.STATE_RUNNING);
@@ -1323,9 +1721,11 @@ class BreackOut {
       }
       else if (gameState == States.STATE_NEW_LEVEL) {
         //Random music
-/*        let musicId = getRandomInt(this.#musics.length-1);
-        this.#musics[musicId].play()*/
+        /*        let musicId = getRandomInt(this.#musics.length-1);
+                this.#musics[musicId].play()*/
+
         this.#ball.reset();
+        this.#bonusManager.reset();
         this.#timeToLaunch = now + 1000;
         changeGameState(States.STATE_LAUNCH);
       }
@@ -1344,6 +1744,7 @@ class BreackOut {
         }
       }
       else if (gameState == States.STATE_GAME_OVER) {
+        
         this.launchGameOverAnimation(() => {
           changeGameState(States.STATE_MENU);
         });
@@ -1370,6 +1771,10 @@ class BreackOut {
           this.#brickManager.loadLevel();
           changeGameState(States.STATE_NEW_LEVEL);
         }
+        //Update bonuses
+        this.#bonusManager.update();
+
+        //SPECIAL CONTROLS 
         if (this.#inputController.actions["KeyP"]) {
           this.#bPause = true;
           changeGameState(States.STATE_PAUSE);
@@ -1426,6 +1831,8 @@ class BreackOut {
     currentLevel = 1;
     this.#brickManager.loadLevel();
     this.#ball.reset();
+    this.#bonusManager.reset();        
+        
     //this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
     nbLives = START_LIVES;
     if (currentScore > currentHighScore)
@@ -1454,19 +1861,19 @@ class BreackOut {
     wallMaterial.ambientTexture.vScale = 0.5;
 
     this.#walls = new TransformNode("walls", this.#scene);
-    var lWall = MeshBuilder.CreateBox("lWall", { width: profondeurWalls, height: hauteurWalls, depth: epaisseurWalls, wrap: true }, this.#scene);
+    var lWall = MeshBuilder.CreateBox("lWall", { width: WALLS_DEPTH, height: WALLS_HEIGHT, depth: WALLS_THICKNESS, wrap: true }, this.#scene);
     lWall.rotation.y = -Math.PI / 2;
-    lWall.position.x = -brickWidth;
-    lWall.position.z = (profondeur + epaisseurWalls * 2.5) - (profondeurWalls / 2);
+    lWall.position.x = -BRICK_WIDTH;
+    lWall.position.z = (GAME_AREA_DEPTH + WALLS_THICKNESS * 2.5) - (WALLS_DEPTH / 2);
 
-    var rWall = MeshBuilder.CreateBox("rWall", { width: profondeurWalls, height: hauteurWalls, depth: epaisseurWalls, wrap: true }, this.#scene);
+    var rWall = MeshBuilder.CreateBox("rWall", { width: WALLS_DEPTH, height: WALLS_HEIGHT, depth: WALLS_THICKNESS, wrap: true }, this.#scene);
     rWall.rotation.y = Math.PI / 2;
-    rWall.position.x = largeur;
-    rWall.position.z = (profondeur + epaisseurWalls * 2.5) - (profondeurWalls / 2);
+    rWall.position.x = GAME_AREA_WIDTH;
+    rWall.position.z = (GAME_AREA_DEPTH + WALLS_THICKNESS * 2.5) - (WALLS_DEPTH / 2);
 
 
-    var tWall = MeshBuilder.CreateBox("tWall", { width: (largeur + brickWidth), height: hauteurWalls, depth: epaisseurWalls, wrap: true }, this.#scene);
-    tWall.position = new Vector3((largeur - brickWidth) / 2, 0, profondeur + (epaisseurWalls * 2));
+    var tWall = MeshBuilder.CreateBox("tWall", { width: (GAME_AREA_WIDTH + BRICK_WIDTH), height: WALLS_HEIGHT, depth: WALLS_THICKNESS, wrap: true }, this.#scene);
+    tWall.position = new Vector3((GAME_AREA_WIDTH - BRICK_WIDTH) / 2, 0, GAME_AREA_DEPTH + (WALLS_THICKNESS * 2));
     lWall.setParent(this.#walls);
     rWall.setParent(this.#walls);
     tWall.setParent(this.#walls);
@@ -1550,7 +1957,7 @@ class BreackOut {
     this.#camera.setTarget(this.getTargetMenuPosition());
   }
   getTargetMenuPosition() {
-    let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget);
+    let guiParent = this.#scene.getNodeByName(START_BUTTON_MESH_TARGET);
     return guiParent.getAbsolutePosition();
   }
 
@@ -1561,7 +1968,7 @@ class BreackOut {
 
   loadMenuGUI() {
     // GUI
-    let guiParent = this.#scene.getNodeByName(StartButtonMeshTarget);
+    let guiParent = this.#scene.getNodeByName(START_BUTTON_MESH_TARGET);
     this.#camera.setTarget(guiParent.getAbsolutePosition());
 
     var startGameButton = MeshBuilder.CreatePlane("startGameButton", { width: 10, depth: 10 });
@@ -1693,11 +2100,18 @@ class BreackOut {
 class InputController {
 
   #scene;
+  #canvas;
+  #engine;
+  #gamepadManager;
+
   inputMap = {};
   actions = {};
 
-  constructor(scene) {
+  constructor(engine, scene, canvas) {
     this.#scene = scene;
+    this.#canvas = canvas;
+    this.#engine = engine;
+    this.#gamepadManager = new GamepadManager();
 
     this.#scene.onKeyboardObservable.add((kbInfo) => {
       switch (kbInfo.type) {
@@ -1712,11 +2126,38 @@ class InputController {
           break;
       }
     });
+
+    this.#gamepadManager.onGamepadConnectedObservable.add((gamepad, state) => {
+      console.log("Connected: " + gamepad.id);
+
+      gamepad.onButtonDownObservable.add((button, state) => {
+        //Button has been pressed
+        console.log(button + " pressed");
+      });
+      gamepad.onButtonUpObservable.add((button, state) => {
+        console.log(button + " released");
+      });
+      gamepad.onleftstickchanged((values) => {
+        //Left stick has been moved
+        console.log("x:" + values.x.toFixed(3) + " y:" + values.y.toFixed(3));
+      });
+
+      gamepad.onrightstickchanged((values) => {
+        console.log("x:" + values.x.toFixed(3) + " y:" + values.y.toFixed(3));
+      });
+    });
+
+    this.#gamepadManager.onGamepadDisconnectedObservable.add((gamepad, state) => {
+      console.log("Disconnected: " + gamepad.id);
+    });
+
   }
 
   update() {
     //Gestion des actions (keydown / keyup -> Action)
   }
+
+
 
   endupdate() {
     this.actions = {};
