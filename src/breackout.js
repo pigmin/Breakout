@@ -701,10 +701,6 @@ class BonusObj extends Entity {
   }
 
 
-  explode() {
-    //    this.#explosionParticleSystem.start();
-  }
-
   update() {
 
     if (this.isAlive) {
@@ -1009,10 +1005,12 @@ class BrickObj extends Entity {
   isAlive = true;
   life = 1;
   #explosionParticleSystem
+  #scene;
 
-  constructor(index, brickTypeObj, x, y, z, parent) {
+  constructor(index, brickTypeObj, x, y, z, parent, scene) {
     super(x, y, z);
 
+    this.#scene = scene;
 
     if (brickTypeObj == null) {
       this.isAlive = false;
@@ -1060,6 +1058,53 @@ class BrickObj extends Entity {
 
   explode() {
     this.#explosionParticleSystem.start();
+
+
+    const startFrame = 0;
+    const endFrame = 60;
+    const frameRate = 60;
+
+    var animationUp = new Animation(
+      "explodingAnimation",
+      "position",
+      frameRate,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+    var keys = [];
+    keys.push({
+      frame: startFrame,
+      value: this.gameObject.position.clone()
+    });   
+    keys.push({
+      frame: endFrame,
+      value: new Vector3(this.gameObject.position.x + Scalar.RandomRange(-30, 30), this.gameObject.position.y + Scalar.RandomRange(100, 150), this.gameObject.position.z + Scalar.RandomRange(-120, 20))
+    });
+    animationUp.setKeys(keys);
+
+    var animationRoll = new Animation(
+      "explodingAnimation",
+      "rotation",
+      frameRate,
+      Animation.ANIMATIONTYPE_VECTOR3,
+      Animation.ANIMATIONLOOPMODE_CONSTANT
+    );
+    keys = [];
+    keys.push({
+      frame: startFrame,
+      value: this.gameObject.rotation.clone()
+    });
+    keys.push({
+      frame: endFrame,
+      value: new Vector3(Math.PI/2 + Scalar.RandomRange(0, Math.PI/2), Scalar.RandomRange(Math.PI/2, Math.PI), Math.PI/2 + Scalar.RandomRange(Math.PI/4, Math.PI/2))
+    });
+    animationRoll.setKeys(keys);
+
+  
+    this.#scene.beginDirectAnimation(this.gameObject, [animationUp, animationRoll], 0, endFrame, false, 1, () => {
+      this.setVisible(false);
+    });
+    //
   }
 
 
@@ -1228,7 +1273,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
         let z = j * BRICK_DEPTH;
         let car = currentLevelMatrix[(BRICKS_ROWS - 1) - j].charAt(i);
         if (car === " ") {
-          let uneBrique = new BrickObj(index, null, x, y, z, this.#parent);
+          let uneBrique = new BrickObj(index, null, x, y, z, this.#parent, this.#scene);
           this.#bricks[index] = uneBrique;
           this.#bricks[index].isAlive = false;
         }
@@ -1242,7 +1287,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
           }
 
           type = Scalar.Clamp(Math.round(type), 0, (bricksTypeDef.length - 1));
-          let uneBrique = new BrickObj(index, bricksTypeDef[type], x, y, z, this.#parent);
+          let uneBrique = new BrickObj(index, bricksTypeDef[type], x, y, z, this.#parent, this.#scene);
 
 
           this.#bricks[index] = uneBrique;
@@ -1264,7 +1309,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   update() {
-
+    //Update anims of exploding bricks ? or use animation ?
   }
 
   isLevelFinished() {
@@ -1320,7 +1365,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
 
         this.#bricks[index].isAlive = false;
 
-        this.#bricks[index].setVisible(false);
+        //this.#bricks[index].setVisible(false);
         this.#bricks[index].explode();
         this.#iLiveBricks--;
         currentScore += this.#bricks[index].score;
@@ -1332,12 +1377,6 @@ brickType.material.diffuseTexture.vScale = 1;*/
     return ret;
 
   }
-
-  draw() {
-
-
-  }
-
 
 }
 
