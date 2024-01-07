@@ -133,7 +133,7 @@ function changeGameState(newState) {
 let SoundsFX = Object.freeze({
   BRICK1: 0,
   BRICK2: 1,
-  HARD_BRICK: 2, 
+  HARD_BRICK: 2,
   PADDLE: 3,
   LOOSE: 4,
   BONUS_LIFE: 5,
@@ -329,7 +329,7 @@ class Paddle extends Entity {
 
     if (this.#temporaryGrowEndTime > 0 && this.#temporaryGrowEndTime < performance.now())
       this.grow(false);
-    
+
     this.applyVelocities();
 
     //Walls collisions
@@ -343,11 +343,11 @@ class Paddle extends Entity {
   }
 
   getLeftX() {
-    return this.x - (PADDLE_WIDTH*this.#temporaryGrowFactor) / 2;    
+    return this.x - (PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
   }
 
   getRightX() {
-    return this.x + (PADDLE_WIDTH*this.#temporaryGrowFactor) / 2;    
+    return this.x + (PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
   }
 
   grow(bGrowing) {
@@ -365,10 +365,10 @@ class Paddle extends Entity {
       this.#temporaryGrowFactor = 1.0;
       this.growAnimation(true);
     }
-   // this.gameObject.scaling.x = this.#temporaryGrowFactor;
+    // this.gameObject.scaling.x = this.#temporaryGrowFactor;
     //On recalcule les min/max
-    this.#paddleMinX = (WORLD_MIN_X + (PADDLE_WIDTH*this.#temporaryGrowFactor) / 2) - BALL_RADIUS;
-    this.#paddleMaxX = (WORLD_MAX_X - (PADDLE_WIDTH*this.#temporaryGrowFactor) / 2) + BALL_RADIUS;
+    this.#paddleMinX = (WORLD_MIN_X + (PADDLE_WIDTH * this.#temporaryGrowFactor) / 2) - BALL_RADIUS;
+    this.#paddleMaxX = (WORLD_MAX_X - (PADDLE_WIDTH * this.#temporaryGrowFactor) / 2) + BALL_RADIUS;
   }
 
   reset() {
@@ -376,7 +376,7 @@ class Paddle extends Entity {
     this.grow(false);
   }
 
-  
+
   growAnimation(bReverse) {
 
     const startFrame = 0;
@@ -1384,6 +1384,7 @@ class BreackOut {
   #myMeshes = [];
   #menuUiTexture;
   #gameUI;
+  #creditsUI;
 
   #timeToLaunch = 0;
   #cameraStartPosition = new Vector3(-257, 566, -620);
@@ -1542,6 +1543,9 @@ class BreackOut {
     this.#bonusManager.setBallObj(this.#ball);
 
     changeGameState(States.STATE_PRE_INTRO);
+    this.launchCreditsAnimation(() => {
+      this.#creditsUI.rootContainer.isVisible = false;
+     });
     this.launchPreIntroAnimation(() => {
       changeGameState(States.STATE_MENU);
     });
@@ -1734,6 +1738,90 @@ class BreackOut {
     this.#scene.beginAnimation(this.#camera, startFrame, endFrame, false, 1, callback);
   }
 
+
+  launchCreditsAnimation(callback) {
+
+    const frameRate = 60;
+    const startFrame = 0;
+    const endFrame = 500;
+
+    this.#creditsUI = AdvancedDynamicTexture.CreateFullscreenUI("creditsUI");
+    // Text label
+    let modelCredits = new TextBlock("modelCredits");
+    modelCredits.text = "3D model 'Secret Area-52 || Room' by dark_igorek";
+    modelCredits.fontSize = "16px";
+    //modelCredits.fontFamily = "...";
+    modelCredits.color = "#aaaaaa";
+    modelCredits.height = "52px";
+    modelCredits.top = "-200px";
+    modelCredits.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    modelCredits.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.#creditsUI.addControl(modelCredits);
+
+    // Text label
+    let musicCredits = new TextBlock("musicCredits");
+    musicCredits.text = 'Unreal II main theme by Purple Motion Skaven from "Unreal ][ - The 2nd Reality | Future Crew ⭐ Assembly \'93"';
+    musicCredits.fontSize = "16px";
+    //musicCredits.fontFamily = "...";
+    musicCredits.color = "#bbbbbb";
+    musicCredits.height = "52px";
+    musicCredits.top = "-300px";
+    musicCredits.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    musicCredits.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.#creditsUI.addControl(musicCredits);
+
+
+    // Text label
+    let codingCredits = new TextBlock("codingCredits");
+    codingCredits.text = "Code by Olivier Arguimbau alias Pigmin 👽";
+    codingCredits.fontSize = "20px";
+    //codingCredits.fontFamily = "...";
+    codingCredits.color = "#ffffff";
+    codingCredits.height = "52px";
+    codingCredits.top = "-400px";
+    codingCredits.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    codingCredits.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.#creditsUI.addControl(codingCredits);
+
+
+
+    var modelCreditsMotion = new Animation("modelCreditsMotion", "top", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    var modelCreditsMotionKeys = [];
+    //modelCredits.text = "Happy Holidays"; 
+    modelCreditsMotionKeys.push({ frame: 0, value: -200 });
+    modelCreditsMotionKeys.push({ frame: 150, value: 50 });
+    modelCreditsMotionKeys.push({ frame: 450, value: 50 });
+    modelCreditsMotionKeys.push({ frame: 500, value: -200 });
+    modelCreditsMotion.setKeys(modelCreditsMotionKeys);
+
+    this.#scene.beginDirectAnimation(modelCredits, [modelCreditsMotion], 0, endFrame, false, 1, callback);
+
+    var musicCreditsMotion = new Animation("musicCreditsMotion", "top", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    var musicCreditsMotionKeys = [];
+    //musicCredits.text = "Happy Holidays"; 
+    musicCreditsMotionKeys.push({ frame: 0, value: -300 });
+    musicCreditsMotionKeys.push({ frame: 150, value: 200 });
+    musicCreditsMotionKeys.push({ frame: 450, value: 200 });
+    musicCreditsMotionKeys.push({ frame: 500, value: -300 });
+    musicCreditsMotion.setKeys(musicCreditsMotionKeys);
+
+    this.#scene.beginDirectAnimation(musicCredits, [musicCreditsMotion], 0, endFrame, false, 1, callback);
+
+    var codingCreditsMotion = new Animation("codingCreditsMotion", "top", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    var codingCreditsMotionKeys = [];
+    //codingCredits.text = "Happy Holidays"; 
+    codingCreditsMotionKeys.push({ frame: 0, value: -400 });
+    codingCreditsMotionKeys.push({ frame: 150, value: 350 });
+    codingCreditsMotionKeys.push({ frame: 450, value: 350 });
+    codingCreditsMotionKeys.push({ frame: 500, value: -400 });
+    codingCreditsMotion.setKeys(codingCreditsMotionKeys);
+
+    this.#scene.beginDirectAnimation(codingCredits, [codingCreditsMotion], 0, endFrame, false, 1, callback);
+
+
+
+  }
+
   loadAssets() {
     return new Promise((resolve) => {
 
@@ -1750,7 +1838,7 @@ class BreackOut {
       const looseSoundData = this.#assetsManager.addBinaryFileTask("looseSound", looseSoundUrl);
       const bonusLifeSoundData = this.#assetsManager.addBinaryFileTask("bonusLife", bonusLifeSoundUrl);
       const bonusGrowSoundData = this.#assetsManager.addBinaryFileTask("bonusGrow", bonusGrowSoundUrl);
-      
+
 
       this.LoadEntity(
         "room",
@@ -2193,17 +2281,17 @@ class BreackOut {
     this.updateTextLevel();
   }
   updateTextLives() {
-    this.textLives.text = `Vies : ${nbLives}`;
+    this.textLives.text = `Lifes : ${nbLives}`;
   }
   updateTextScore() {
     this.textScore.text = `Score : ${currentScore}`;
   }
   updateTextHighScore() {
-    this.textHigh.text = `High Score : ${currentHighScore}`;
+    this.textHigh.text = `HighScore : ${currentHighScore}`;
   }
 
   updateTextLevel() {
-    this.textLevel.text = `Lvl : ${currentLevel}`;
+    this.textLevel.text = `Level : ${currentLevel}`;
   }
 
 
