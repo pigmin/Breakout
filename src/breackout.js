@@ -941,8 +941,8 @@ brickType.material.diffuseTexture.vScale = 1;*/
 
   randomLaunch(x, y, z) {
 
-    //20 %
-    if (getRandomInt(100) < 109) {
+    //35 %
+    if (getRandomInt(100) < 35) {
       this.launch(x, y, z);
     }
 
