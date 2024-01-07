@@ -4,7 +4,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera, PrecisionDate, VirtualJoystick, GamepadManager } from "@babylonjs/core";
+import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera, PrecisionDate, VirtualJoystick, GamepadManager, VideoTexture } from "@babylonjs/core";
 
 
 
@@ -30,10 +30,11 @@ import paddleNormalUrl from "../assets/textures/Metal_Plate_017_normal.jpg";
 
 import groundBaseColorUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_basecolor.jpg";
 import groundNormalUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_normal.jpg";
-import groundAmbientUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_ambientOcclusion.jpg";
 
 import particleExplosionUrl from "../assets/particles/systems/particleSystem.json"
 import particleExplosionTextureUrl from "../assets/particles/textures/dotParticle.png"
+
+import screenVideoTextureUrl from "../assets/textures/Future Crew - Second Reality (360p no SOUND).mp4";
 
 import musicUrl1 from "../assets/musics/2ND_PM.mp3";
 /*import musicUrl2 from "../assets/musics/Eric Cubizolle - Andromeda.mp3";
@@ -52,6 +53,7 @@ import bonusGrowSoundUrl from "../assets/sounds/Arkanoid SFX (4).wav";
 
 
 import roomModelUrl from "../assets/models/secret_area-52__room.glb";
+import monitorModelUrl from "../assets/models/old_monitor_with_screen.glb";
 
 import flareParticleTextureUrl from "../assets/particles/textures/Flare.png";
 import { AdvancedDynamicTexture, Button, Control, TextBlock } from "@babylonjs/gui";
@@ -355,7 +357,7 @@ class Paddle extends Entity {
     if (bGrowing) {
       //animate to grow
       if (this.#temporaryGrowFactor == 1.0)
-        this.growAnimation(true);
+        this.growAnimation(false);
 
       this.#temporaryGrowEndTime = performance.now() + 20000;
       this.#temporaryGrowFactor = 1.5;
@@ -1750,7 +1752,7 @@ class BreackOut {
     let modelCredits = new TextBlock("modelCredits");
     modelCredits.text = "3D model 'Secret Area-52 || Room' by dark_igorek";
     modelCredits.fontSize = "16px";
-    //modelCredits.fontFamily = "...";
+    modelCredits.fontFamily = "Courier New";
     modelCredits.color = "#aaaaaa";
     modelCredits.height = "52px";
     modelCredits.top = "-200px";
@@ -1762,7 +1764,7 @@ class BreackOut {
     let musicCredits = new TextBlock("musicCredits");
     musicCredits.text = 'Unreal II main theme by Purple Motion Skaven from "Unreal ][ - The 2nd Reality | Future Crew ⭐ Assembly \'93"';
     musicCredits.fontSize = "16px";
-    //musicCredits.fontFamily = "...";
+    musicCredits.fontFamily = "Courier New";
     musicCredits.color = "#bbbbbb";
     musicCredits.height = "52px";
     musicCredits.top = "-300px";
@@ -1775,7 +1777,7 @@ class BreackOut {
     let codingCredits = new TextBlock("codingCredits");
     codingCredits.text = "Code by Olivier Arguimbau alias Pigmin 👽";
     codingCredits.fontSize = "20px";
-    //codingCredits.fontFamily = "...";
+    codingCredits.fontFamily = "Courier New";
     codingCredits.color = "#ffffff";
     codingCredits.height = "52px";
     codingCredits.top = "-400px";
@@ -1852,6 +1854,25 @@ class BreackOut {
         this.#scene,
         this.#shadowGenerator
       );
+
+      
+      this.LoadEntity(
+        "monitor",
+        "",
+        "",
+        monitorModelUrl,
+        this.#assetsManager,
+        this.#myMeshes,
+        1,
+        { position: new Vector3(130, -20.95, 30), scaling: new Vector3(-35, 35, 35), rotation: new Vector3(0, Math.PI+0.2, 0) },
+        this.#scene,
+        this.#shadowGenerator,
+        (mesh) => {
+          let screenMat = this.#scene.getMaterialByName("Screen");
+          screenMat.emissiveTexture = new VideoTexture("vidtex",screenVideoTextureUrl, this.#scene);
+        }
+      );
+
 
       // load all tasks
       this.#assetsManager.load();
@@ -2126,20 +2147,20 @@ class BreackOut {
     entity_number,
     props,
     scene,
-    shadowGenerator
+    shadowGenerator, 
+    callback
   ) {
     const meshTask = manager.addMeshTask(name, meshNameToLoad, url, file);
 
     meshTask.onSuccess = function (task) {
       const parent = task.loadedMeshes[0];
+      parent.name = name;
 
       /*      const obj = parent.getChildMeshes()[0];
             obj.setParent(null);
             parent.dispose();*/
 
       meshArray[entity_number] = parent;
-      meshArray[entity_number].position = Vector3.Zero();
-      meshArray[entity_number].rotation = Vector3.Zero();
 
       if (props) {
         if (props.scaling) {
@@ -2148,6 +2169,20 @@ class BreackOut {
         if (props.position) {
           meshArray[entity_number].position.copyFrom(props.position);
         }
+        else
+          meshArray[entity_number].position = Vector3.Zero();
+
+        if (props.rotation) {
+          meshArray[entity_number].rotationQuaternion = null;
+          meshArray[entity_number].rotation.copyFrom(props.rotation);
+        }
+        else
+          meshArray[entity_number].rotation = Vector3.Zero();  
+
+      }
+      else {
+        meshArray[entity_number].position = Vector3.Zero();
+        meshArray[entity_number].rotation = Vector3.Zero();  
       }
 
       if (shadowGenerator)
@@ -2157,6 +2192,8 @@ class BreackOut {
         mesh.receiveShadows = true;
         mesh.computeWorldMatrix(true);
       }
+      if (callback)
+        callback(meshArray[entity_number]);
     };
     meshTask.onError = function (e) {
       console.log(e);
@@ -2200,9 +2237,10 @@ class BreackOut {
 
     var button1 = Button.CreateSimpleButton("but1", "START");
     button1.width = 0.2;
-    button1.height = 0.85;
+    button1.height = 0.9;
     button1.color = "white";
     button1.fontSize = 64;
+    button1.fontFamily = "Courier New";
     button1.background = "";
     button1.onPointerUpObservable.add(() => {
       if (gameState == States.STATE_MENU)
@@ -2257,7 +2295,7 @@ class BreackOut {
     this.textLives.color = "white";
     this.textLives.fontSize = fontSize;
 
-    //this.textLives.fontFamily = '"Press Start 2P"';
+    this.textLives.fontFamily = 'Courier New';
     this.textLives.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.textLives.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
     this.textLives.left = spacing;
@@ -2336,12 +2374,12 @@ class InputController {
       switch (kbInfo.type) {
         case KeyboardEventTypes.KEYDOWN:
           this.inputMap[kbInfo.event.code] = true;
-          console.log(`KEY DOWN: ${kbInfo.event.code} / ${kbInfo.event.key}`);
+          //console.log(`KEY DOWN: ${kbInfo.event.code} / ${kbInfo.event.key}`);
           break;
         case KeyboardEventTypes.KEYUP:
           this.inputMap[kbInfo.event.code] = false;
           this.actions[kbInfo.event.code] = true;
-          console.log(`KEY UP: ${kbInfo.event.code} / ${kbInfo.event.key}`);
+          //console.log(`KEY UP: ${kbInfo.event.code} / ${kbInfo.event.key}`);
           break;
       }
     });
