@@ -351,8 +351,11 @@ class Paddle extends Entity {
   }
 
   grow(bGrowing) {
+
     if (bGrowing) {
       //animate to grow
+      if (this.#temporaryGrowFactor == 1.0)
+        this.growAnimation(true);
 
       this.#temporaryGrowEndTime = performance.now() + 20000;
       this.#temporaryGrowFactor = 1.5;
@@ -360,12 +363,12 @@ class Paddle extends Entity {
     else {
       this.#temporaryGrowEndTime = 0;
       this.#temporaryGrowFactor = 1.0;
+      this.growAnimation(true);
     }
    // this.gameObject.scaling.x = this.#temporaryGrowFactor;
     //On recalcule les min/max
-    this.#paddleMinX = (WORLD_MIN_X + PADDLE_WIDTH / 2) - BALL_RADIUS;
-    this.#paddleMaxX = (WORLD_MAX_X - PADDLE_WIDTH / 2) + BALL_RADIUS;
-    this.growAnimation(!bGrowing);
+    this.#paddleMinX = (WORLD_MIN_X + (PADDLE_WIDTH*this.#temporaryGrowFactor) / 2) - BALL_RADIUS;
+    this.#paddleMaxX = (WORLD_MAX_X - (PADDLE_WIDTH*this.#temporaryGrowFactor) / 2) + BALL_RADIUS;
   }
 
   reset() {
