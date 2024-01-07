@@ -356,11 +356,12 @@ class Paddle extends Entity {
 
     if (bGrowing) {
       //animate to grow
-      if (this.#temporaryGrowFactor == 1.0)
+      this.#temporaryGrowFactor = 1.5;
+
+      if (this.#temporaryGrowEndTime == 0)
         this.growAnimation(false);
 
       this.#temporaryGrowEndTime = performance.now() + 20000;
-      this.#temporaryGrowFactor = 1.5;
     }
     else {
       this.#temporaryGrowEndTime = 0;
@@ -407,9 +408,9 @@ class Paddle extends Entity {
     this.gameObject.animations.push(animation);
 
     if (bReverse)
-      this.#scene.beginAnimation(this.gameObject, endFrame, startFrame, false, 1, undefined);
+      this.#scene.beginAnimation(this.gameObject, endFrame, startFrame, false, 1);
     else
-      this.#scene.beginAnimation(this.gameObject, startFrame, endFrame, false, 1, undefined);
+      this.#scene.beginAnimation(this.gameObject, startFrame, endFrame, false, 1);
   }
 
 }
@@ -817,7 +818,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat3"),
         score: 10,
         probability: 5,
-        callback: this.noBonus.bind(this)
+        callback: this.bonusGrow.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
@@ -825,7 +826,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat4"),
         score: 10,
         probability: 5,
-        callback: this.noBonus.bind(this)
+        callback: this.bonusGrow.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
@@ -833,7 +834,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat5"),
         score: 10,
         probability: 5,
-        callback: this.noBonus.bind(this)
+        callback: this.bonusGrow.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
@@ -841,7 +842,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat6"),
         score: 10,
         probability: 5,
-        callback: this.noBonus.bind(this)
+        callback: this.bonusGrow.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
@@ -849,7 +850,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat7"),
         score: 10,
         probability: 5,
-        callback: this.noBonus.bind(this)
+        callback: this.bonusGrow.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel8`, options),
@@ -857,7 +858,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat8"),
         score: 10,
         probability: 5,
-        callback: this.noBonus.bind(this)
+        callback: this.bonusGrow.bind(this)
       }
     ];
 
