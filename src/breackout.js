@@ -812,13 +812,13 @@ class BonusManager {
         probability: 5,
         callback: this.bonusGrow.bind(this)
       },
-      {
+     /* {
         model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
         color: new Color3(1, 1, 0),                       //JAUNE VIF
         material: new StandardMaterial("bonusMat3"),
         score: 10,
         probability: 5,
-        callback: this.bonusGrow.bind(this)
+        callback: this.noBonus.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
@@ -826,7 +826,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat4"),
         score: 10,
         probability: 5,
-        callback: this.bonusGrow.bind(this)
+        callback: this.noBonus.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
@@ -834,7 +834,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat5"),
         score: 10,
         probability: 5,
-        callback: this.bonusGrow.bind(this)
+        callback: this.noBonus.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
@@ -842,7 +842,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat6"),
         score: 10,
         probability: 5,
-        callback: this.bonusGrow.bind(this)
+        callback: this.noBonus.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
@@ -850,7 +850,7 @@ class BonusManager {
         material: new StandardMaterial("bonusMat7"),
         score: 10,
         probability: 5,
-        callback: this.bonusGrow.bind(this)
+        callback: this.noBonus.bind(this)
       },
       {
         model: MeshBuilder.CreateCapsule(`bonusModel8`, options),
@@ -858,8 +858,8 @@ class BonusManager {
         material: new StandardMaterial("bonusMat8"),
         score: 10,
         probability: 5,
-        callback: this.bonusGrow.bind(this)
-      }
+        callback: this.noBonus.bind(this)
+      }*/
     ];
 
     this.#parent = new TransformNode("bonuses");
@@ -955,6 +955,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
 
     //Random for now but need to add some coeff based on levels or brick type
     let type = getRandomInt(bonusesTypeDef.length - 1);
+//    let type = getRandomInt(bonusesTypeDef.length - 1);
 
     let unBonus = new BonusObj(this.#iLiveBonuses, bonusesTypeDef[type], x, y, z, this.#parent, this.#paddle)
 
@@ -1870,7 +1871,10 @@ class BreackOut {
         this.#shadowGenerator,
         (mesh) => {
           let screenMat = this.#scene.getMaterialByName("Screen");
-          screenMat.emissiveTexture = new VideoTexture("vidtex",screenVideoTextureUrl, this.#scene);
+          screenMat.emissiveTexture = null;
+          screenMat.albedoColor = new Color3(1, 1, 1);
+          screenMat.emissiveColor = new Color3(0, 0, 0);
+          screenMat.albedoTexture = new VideoTexture("vidtex",screenVideoTextureUrl, this.#scene);
         }
       );
 
