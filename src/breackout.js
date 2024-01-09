@@ -4,7 +4,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ImageProcessingConfiguration, PBRMaterial, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, FlyCamera, PrecisionDate, VirtualJoystick, GamepadManager, VideoTexture } from "@babylonjs/core";
+import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, GamepadManager, VideoTexture } from "@babylonjs/core";
 
 
 
@@ -58,7 +58,7 @@ import monitorModelUrl from "../assets/models/old_monitor_with_screen.glb";
 import flareParticleTextureUrl from "../assets/particles/textures/Flare.png";
 import { AdvancedDynamicTexture, Button, Control, TextBlock } from "@babylonjs/gui";
 
-import "./levels";
+
 import { levelsDef } from "./levels";
 
 const BRICKS_ROWS = 25;
@@ -427,7 +427,7 @@ class Ball extends Entity {
   #lastDateTouch;
   #temporarySpeedFactor;
   #temporarySlowEndTime;
-
+  
   constructor(x, y, z, brickManager, paddle, bonusManager) {
     super(x, y, z);
     this.#brickManager = brickManager;
@@ -512,6 +512,7 @@ class Ball extends Entity {
   glue() {
 
   }
+
 
   update() {
 
@@ -632,10 +633,64 @@ class Ball extends Entity {
 }
 
 
+class BallsManager {
+
+  #paddle;
+  #brickManager;
+  #bonusManager;
+
+  #parent;
+  #balls = [];
+  #iLiveBalls = 0;
+
+
+  constructor(paddle, brickManager, bonusManager) {
+    this.#paddle = paddle;
+    this.#brickManager = brickManager;
+    this.#bonusManager = bonusManager;
+
+    
+    let ball1 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager);
+    //    let ball2 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, false);
+    //    let ball3 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, false);
+    this.#balls.push(ball1);
+    
+
+  }
+  positionAtPaddle() {
+    this.#balls[0].x = this.#paddle.x;
+  }
+
+  launch(vx, vy, vz) {
+    this.#balls[0].launch(vx, vy, vz);
+  }
+
+  reset() {
+    this.#balls[0].reset();
+  }
+
+  slowDown(bSlowDown) {
+    this.#balls[0].slowDown(bSlowDown);
+  }
+
+  glue() {
+    this.#balls[0].glue();
+  }
+
+
+  update() {
+    this.#balls[0].update();
+    
+
+  }
+
+  
+
+}
+
 
 const BONUS_RADIUS = 1.2;
 const BONUS_HEIGHT = 5;
-const BONUS_SLOW = 0;
 
 let bonusesTypeDef = [];
 
@@ -770,7 +825,7 @@ class BonusManager {
   #paddle;
 
   #parent;
-  #ball;
+  #ballsManager;
   #bonuses = [];
   #iLiveBonuses = 0;
 
@@ -888,8 +943,8 @@ brickType.material.diffuseTexture.vScale = 1;*/
     this.init();
   }
 
-  setBallObj(ball) {
-    this.#ball = ball;
+  setBallsManager(ballMgr) {
+    this.#ballsManager = ballMgr;
   }
 
   noBonus() {
@@ -897,7 +952,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   bonusSlow() {
-    this.#ball.slowDown(true);
+    this.#ballsManager.slowDown(true);
   }
 
   bonusGrow() {
@@ -1461,13 +1516,13 @@ class BreackOut {
   #skySphere;
 
   #paddle;
-  #ball;
   #walls;
-
+  
   #brickManager;
-  #bInspector = false;
-  #inputController;
+  #ballsManager;
   #bonusManager;
+  #inputController;
+  #bInspector = false;
 
   #myMeshes = [];
   #menuUiTexture;
@@ -1626,9 +1681,12 @@ class BreackOut {
     this.#paddle = new Paddle(GAME_AREA_WIDTH / 2, 0, BASE_Z_PADDLE, this.#inputController, this.#scene);
     this.#bonusManager = new BonusManager(this.#scene, this.#paddle);
 
-    this.#ball = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager);
+
+
+    this.#ballsManager = new BallsManager(this.#paddle, this.#brickManager, this.#bonusManager);
+
     //Ok it*s ugly but it's only a game not a nuclear plant !
-    this.#bonusManager.setBallObj(this.#ball);
+    this.#bonusManager.setBallsManager(this.#ballsManager);
 
     changeGameState(States.STATE_PRE_INTRO);
     this.launchCreditsAnimation(() => {
@@ -1873,38 +1931,38 @@ class BreackOut {
 
 
 
-    var modelCreditsMotion = new Animation("modelCreditsMotion", "top", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    var modelCreditsMotion = new Animation("modelCreditsMotion", "top", frameRate, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
     var modelCreditsMotionKeys = [];
     //modelCredits.text = "Happy Holidays"; 
-    modelCreditsMotionKeys.push({ frame: 0, value: -200 });
-    modelCreditsMotionKeys.push({ frame: 150, value: 50 });
-    modelCreditsMotionKeys.push({ frame: 450, value: 50 });
-    modelCreditsMotionKeys.push({ frame: 500, value: -200 });
+    modelCreditsMotionKeys.push({ frame: startFrame, value: -200 });
+    modelCreditsMotionKeys.push({ frame: endFrame*0.3, value: 50 });
+    modelCreditsMotionKeys.push({ frame: endFrame*0.9, value: 50 });
+    modelCreditsMotionKeys.push({ frame: endFrame, value: -200 });
     modelCreditsMotion.setKeys(modelCreditsMotionKeys);
 
-    this.#scene.beginDirectAnimation(modelCredits, [modelCreditsMotion], 0, endFrame, false, 1, callback);
+    this.#scene.beginDirectAnimation(modelCredits, [modelCreditsMotion], startFrame, endFrame, false, 1, callback);
 
-    var musicCreditsMotion = new Animation("musicCreditsMotion", "top", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    var musicCreditsMotion = new Animation("musicCreditsMotion", "top", frameRate, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
     var musicCreditsMotionKeys = [];
     //musicCredits.text = "Happy Holidays"; 
-    musicCreditsMotionKeys.push({ frame: 0, value: -300 });
-    musicCreditsMotionKeys.push({ frame: 150, value: 200 });
-    musicCreditsMotionKeys.push({ frame: 450, value: 200 });
-    musicCreditsMotionKeys.push({ frame: 500, value: -300 });
+    musicCreditsMotionKeys.push({ frame: startFrame, value: -300 });
+    musicCreditsMotionKeys.push({ frame: endFrame*0.3, value: 200 });
+    musicCreditsMotionKeys.push({ frame: endFrame*0.9, value: 200 });
+    musicCreditsMotionKeys.push({ frame: endFrame, value: -300 });
     musicCreditsMotion.setKeys(musicCreditsMotionKeys);
 
-    this.#scene.beginDirectAnimation(musicCredits, [musicCreditsMotion], 0, endFrame, false, 1, callback);
+    this.#scene.beginDirectAnimation(musicCredits, [musicCreditsMotion], startFrame, endFrame, false, 1, callback);
 
-    var codingCreditsMotion = new Animation("codingCreditsMotion", "top", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    var codingCreditsMotion = new Animation("codingCreditsMotion", "top", frameRate, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
     var codingCreditsMotionKeys = [];
     //codingCredits.text = "Happy Holidays"; 
-    codingCreditsMotionKeys.push({ frame: 0, value: -400 });
-    codingCreditsMotionKeys.push({ frame: 150, value: 350 });
-    codingCreditsMotionKeys.push({ frame: 450, value: 350 });
-    codingCreditsMotionKeys.push({ frame: 500, value: -400 });
+    codingCreditsMotionKeys.push({ frame: startFrame, value: -400 });
+    codingCreditsMotionKeys.push({ frame: endFrame*0.3, value: 350 });
+    codingCreditsMotionKeys.push({ frame: endFrame*0.9, value: 350 });
+    codingCreditsMotionKeys.push({ frame: endFrame, value: -400 });
     codingCreditsMotion.setKeys(codingCreditsMotionKeys);
 
-    this.#scene.beginDirectAnimation(codingCredits, [codingCreditsMotion], 0, endFrame, false, 1, callback);
+    this.#scene.beginDirectAnimation(codingCredits, [codingCreditsMotion], startFrame, endFrame, false, 1, callback);
 
 
 
@@ -2012,9 +2070,7 @@ class BreackOut {
       this.updateAllText();
 
       if (gameState == States.STATE_PRE_INTRO) {
-
-
-
+        //RAS
       }
       else if (gameState == States.STATE_MENU) {
         if (this.#inputController.actions["Space"]) {
@@ -2041,14 +2097,14 @@ class BreackOut {
         //Update paddle
         this.#paddle.checkInput();
         this.#paddle.update();
-        this.#ball.x = this.#paddle.x;
-        this.#ball.update();
+        this.#ballsManager.positionAtPaddle()
+        this.#ballsManager.update();
 
         //Update bonuses
         this.#bonusManager.update();
 
         if (now > this.#timeToLaunch) {
-          this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          this.#ballsManager.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
           changeGameState(States.STATE_RUNNING);
         }
       }
@@ -2057,7 +2113,7 @@ class BreackOut {
         /*        let musicId = getRandomInt(this.#musics.length-1);
                 this.#musics[musicId].play()*/
 
-        this.#ball.reset();
+        this.#ballsManager.reset();
         this.#bonusManager.reset();
 
         //Animation level
@@ -2074,7 +2130,7 @@ class BreackOut {
         /*        let musicId = getRandomInt(this.#musics.length-1);
                 this.#musics[musicId].play()*/
 
-        this.#ball.reset();
+        this.#ballsManager.reset();
         this.#bonusManager.reset();
         this.#timeToLaunch = now + 1000;
         changeGameState(States.STATE_LAUNCH);
@@ -2083,7 +2139,7 @@ class BreackOut {
         if (nbLives > 0) {
           nbLives--;
           this.updateTextLives();
-          this.#ball.reset();
+          this.#ballsManager.reset();
           this.#timeToLaunch = now + 500;
           changeGameState(States.STATE_LAUNCH);
         }
@@ -2106,7 +2162,7 @@ class BreackOut {
         this.#paddle.update();
 
         //Update ball
-        this.#ball.update();
+        this.#ballsManager.update();
 
         //Update bricks
         this.#brickManager.update();
@@ -2180,10 +2236,9 @@ class BreackOut {
   resetGame() {
     currentLevel = 1;
     this.#brickManager.loadLevel();
-    this.#ball.reset();
+    this.#ballsManager.reset();
     this.#bonusManager.reset();
 
-    //this.#ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
     nbLives = START_LIVES;
     if (currentScore > currentHighScore)
       currentHighScore = currentScore;
