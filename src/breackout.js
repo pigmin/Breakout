@@ -115,8 +115,6 @@ const MAX_LIVES = 12;
 const START_BUTTON_MESH_TARGET = "Object_351";
 //const StartButtonMeshTarget = "panel_plate.001_140";
 
-let debugMaterial;
-let debugBox;
 let explosionParticleSystem;
 let shadowGenerator;
 
@@ -428,7 +426,7 @@ class Ball extends Entity {
   #temporarySpeedFactor;
   #temporarySlowEndTime;
   
-  constructor(x, y, z, brickManager, paddle, bonusManager) {
+  constructor(x, y, z, brickManager, paddle, bonusManager, bHide) {
     super(x, y, z);
     this.#brickManager = brickManager;
     this.#paddle = paddle;
@@ -452,7 +450,7 @@ class Ball extends Entity {
 
     // Our built-in 'sphere' shape.
     this.gameObject = MeshBuilder.CreateSphere("ball", options);
-    this.gameObject.receiveShadows = true;
+    this.gameObject.receiveShadows = false;
     shadowGenerator.addShadowCaster(this.gameObject);
 
     // Affect a material
@@ -468,7 +466,17 @@ class Ball extends Entity {
     trailMaterial.specularColor = new Color3(1, 1, 1);
     this.#trail.material = trailMaterial;
 
+    if (bHide)
+      this.setVisible(false);
 
+  }
+  setVisible(bVisible) {
+    this.gameObject.setEnabled(bVisible);
+    this.#trail.setEnabled(bVisible);
+  }
+
+  destroy() {
+    this.gameObject.dispose();
   }
 
   launch(vx, vy, vz) {
@@ -478,6 +486,7 @@ class Ball extends Entity {
     this.vx = vx;
     this.vy = vy;
     this.vz = vz;
+    this.setVisible(true);
     this.#temporarySpeedFactor = 1.0;
     this.isAlive = true;
   }
@@ -545,19 +554,12 @@ class Ball extends Entity {
     }
     else if (this.z < WORLD_MIN_Z) {
       this.isAlive = false;
-      changeGameState(States.STATE_LOOSE);
       playSound(SoundsFX.LOOSE);
     }
 
     if (this.isAlive) {
 
-      //Debug
-      let xpos = Math.floor((this.x + BRICK_WIDTH / 2) / BRICK_WIDTH);
-      let zpos = Math.floor((this.z + BRICK_DEPTH / 2) / BRICK_DEPTH);
-      debugBox.position = new Vector3(xpos * BRICK_WIDTH, 0, zpos * BRICK_DEPTH);
-      debugBox.size = 2;
-
-      //Bricks collisions
+      //Bricks collisions, col/row based, todo : pixel based more accurate
       let brickCol = this.#brickManager.getBrickCol(this.x);
       let brickRow = this.#brickManager.getBrickRow(this.z);
 
@@ -617,6 +619,7 @@ class Ball extends Entity {
 
     this.updatePosition();
 
+    return this.isAlive;
   }
 
   checkPaddleCollision() {
@@ -657,41 +660,89 @@ class BallsManager {
     this.#bonusManager = bonusManager;
 
     
-    let ball1 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager);
-    //    let ball2 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, false);
-    //    let ball3 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, false);
+    let ball1 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, false);
+    let ball2 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, true);
+    let ball3 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, true);
+
     this.#balls.push(ball1);
+    this.#balls.push(ball2);
+    this.#balls.push(ball3);
     
 
   }
-  positionAtPaddle() {
+  positionMainBallAtPaddle() {
     this.#balls[0].x = this.#paddle.x;
   }
 
-  launch(vx, vy, vz) {
+  launchMainBall(vx, vy, vz) {
+    this.#iLiveBalls = 1;
     this.#balls[0].launch(vx, vy, vz);
   }
 
   reset() {
-    this.#balls[0].reset();
+    this.#iLiveBalls = 0;
+    for (let i = 0; i < this.#balls.length; i++) {
+      let ball = this.#balls[i];
+      ball.reset();
+      if (i == 0)
+        ball.setVisible(true);
+      else
+        ball.setVisible(false);
+    }
   }
 
   slowDown(bSlowDown) {
-    this.#balls[0].slowDown(bSlowDown);
+    for (let ball of this.#balls) 
+      ball.slowDown(bSlowDown);
   }
 
   glue() {
-    this.#balls[0].glue();
+    for (let ball of this.#balls) 
+      ball.glue();
+      
+  }
+
+  bonusMultiBalls() {
+
+    let bPair = false;
+    let activeBall = 0;
+    for (let i = 0; i < this.#balls.length; i++) {
+      if (this.#balls[i].isAlive) {
+        activeBall = this.#balls[i];
+        break;
+      }
+    }
+
+    for (let i = 0; i < this.#balls.length; i++) {
+      let ball = this.#balls[i];
+
+      if (!ball.isAlive) {
+        ball.x = activeBall.x;
+        ball.y = activeBall.y;
+        ball.z = activeBall.z;
+        if (bPair)
+          ball.launch(-BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+        else
+          ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+
+        bPair = !bPair;
+      }
+    }
   }
 
 
-  update() {
-    this.#balls[0].update();
+  update(bPlaying) {
+    this.#iLiveBalls = 0;
+    for (let ball of this.#balls) {
+      if (ball.update())
+        this.#iLiveBalls++;
+    }
     
+    if (bPlaying && this.#iLiveBalls == 0)
+        changeGameState(States.STATE_LOOSE);
 
   }
-
-  
+ 
 
 }
 
@@ -765,6 +816,7 @@ class BonusObj extends Entity {
 
   update() {
 
+
     if (this.isAlive) {
 
 
@@ -801,6 +853,8 @@ class BonusObj extends Entity {
     }
 
     this.updatePosition();
+
+    return this.isAlive;
   }
 
   takeBonus() {
@@ -870,15 +924,15 @@ class BonusManager {
         probability: 5,
         callback: this.bonusGrow.bind(this)
       },
-      /* {
+      {
          model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
          color: new Color3(1, 1, 0),                       //JAUNE VIF
          material: new StandardMaterial("bonusMat3"),
          score: 10,
          probability: 5,
-         callback: this.noBonus.bind(this)
+         callback: this.bonusMultiBalls.bind(this)
        },
-       {
+     /*  {
          model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
          color: new Color3(1, 0.0, 0.0),                 //ROUGE
          material: new StandardMaterial("bonusMat4"),
@@ -975,6 +1029,10 @@ brickType.material.diffuseTexture.vScale = 1;*/
     }
   }
 
+  bonusMultiBalls() {
+    this.#ballsManager.bonusMultiBalls();
+  }
+
   init() {
 
 
@@ -1003,7 +1061,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
   randomLaunch(x, y, z) {
 
     //35 %
-    if (getRandomInt(100) < 35) {
+    if (getRandomInt(100) < 305) {
       this.launch(x, y, z);
     }
 
@@ -1596,13 +1654,6 @@ class BreackOut {
     pipeline.glowLayer.ldrMerge = true;
 
 
-    debugMaterial = new StandardMaterial("debugMaterial", this.#scene);
-    debugMaterial.emissiveColor = Color3.Red();
-    debugMaterial.wireframe = true;
-    debugBox = MeshBuilder.CreateBox("debugBox", { size: BALL_RADIUS * 2 });
-    debugBox.material = debugMaterial;
-    debugBox.setEnabled(false);
-
     // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
     /*this.#light = new HemisphericLight(
       "light1",
@@ -2104,14 +2155,15 @@ class BreackOut {
         //Update paddle
         this.#paddle.checkInput();
         this.#paddle.update();
-        this.#ballsManager.positionAtPaddle()
-        this.#ballsManager.update();
+        this.#ballsManager.positionMainBallAtPaddle();
+        //Not a real update
+        this.#ballsManager.update(false);
 
         //Update bonuses
         this.#bonusManager.update();
 
         if (now > this.#timeToLaunch) {
-          this.#ballsManager.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          this.#ballsManager.launchMainBall(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
           changeGameState(States.STATE_RUNNING);
         }
       }
@@ -2169,7 +2221,7 @@ class BreackOut {
         this.#paddle.update();
 
         //Update ball
-        this.#ballsManager.update();
+        this.#ballsManager.update(true);
 
         //Update bricks
         this.#brickManager.update();
@@ -2216,14 +2268,12 @@ class BreackOut {
       if (this.#inputController.actions["KeyD"]) {
         this.#bInspector = !this.#bInspector;
         if (this.#bInspector) {
-          debugBox.setEnabled(true);
           Inspector.Show(this.#scene, { embedMode: true });
           console.log(this.#camera);
           this.#camera.attachControl(this.#canvas, true);
 
         }
         else {
-          debugBox.setEnabled(false);
           Inspector.Hide();
           this.#camera.detachControl();
         }
