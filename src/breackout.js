@@ -151,6 +151,217 @@ class Entity {
 
 }
 
+class FireBullet extends Entity {
+
+  #paddle;
+  #brickManager;
+  #bonusManager;
+
+  #trail;
+  isAlive;
+
+  constructor(x, y, z, paddle, brickManager, bonusManager) {
+    super(x, y, z);
+
+    this.#paddle = paddle;
+    this.#brickManager = brickManager;
+    this.#bonusManager = bonusManager;
+
+    var fireMaterial = new StandardMaterial("fireMaterial");
+    fireMaterial.diffuseColor = new Color3(1, 1, 1);
+    fireMaterial.emmisiveColor = new Color3(0.6, 1, 0.6);
+    //fireMaterial.bumpTexture = new Texture(rockTextureNormalUrl);
+
+    const options = {
+      tessellation:5,
+      radius:constants.BULLET_RADIUS,
+      height:constants.BULLET_HEIGHT,
+      radiusTop:constants.BULLET_RADIUS_TOP,
+    };
+
+    // Our built-in 'sphere' shape.
+    this.gameObject = MeshBuilder.CreateCapsule("fire", options);
+    this.gameObject.receiveShadows = false;
+    this.gameObject.rotation.x = Math.PI/2;
+    //shadowGenerator.addShadowCaster(this.gameObject);
+
+    // Affect a material
+    this.gameObject.material = fireMaterial; 
+    this.updatePosition();
+
+    this.#trail = new TrailMesh('fire trail', this.gameObject, brickManager.scene, 0.2, 30, false);
+    var trailMaterial = new StandardMaterial('sourceMat', brickManager.scene);
+    var color = new Color3(0, 0.2, 1);
+
+    trailMaterial.emissiveColor = color;
+    trailMaterial.diffuseColor = color;
+    trailMaterial.specularColor = new Color3(0.5, 0.7, 1);
+    this.#trail.material = trailMaterial;
+  }
+
+  setVisible(bVisible) {
+    this.gameObject.setEnabled(bVisible);
+    this.#trail.setEnabled(bVisible);
+  }
+
+  destroy() {
+    this.#trail.dispose();
+    this.gameObject.dispose();
+  }
+
+  launch(vx, vy, vz) {
+    this.vx = vx;
+    this.vy = vy;
+    this.vz = vz;
+    this.setVisible(true);
+    this.#trail.start();
+    this.isAlive = true;
+  }
+
+  reset() {
+    this.x = this.#paddle.x;
+    this.y = 0;
+    this.z = constants.BASE_Z_BALL;
+    this.vx = 0;
+    this.vy = 0;
+    this.vz = 0;
+    this.isAlive = false;
+    this.updatePosition();
+  }
+
+
+  update() {
+
+    if (this.isAlive) {
+
+
+      this.applyVelocities();
+
+      //Check collisions avec paddle
+      this.checkCollisions();
+
+    }
+
+    this.updatePosition();
+
+    return this.isAlive;
+
+  }
+
+  checkCollisions() {
+
+    //Walls collisions
+    if (this.z > constants.WORLD_MAX_Z) {
+      this.isAlive = false;
+      //playSound(SoundsFX.LOOSE);
+    }
+
+    if (this.isAlive)
+      this.checkBricksCollisions();
+  }
+
+  checkBricksCollisions() {
+
+    //Bricks collisions, col/row based, todo : pixel based more accurate
+    let brickCol = this.#brickManager.getBrickCol(this.x);
+    let brickRow = this.#brickManager.getBrickRow(this.z);
+
+    let brickAtBall = this.#brickManager.isBrickAtRowCol(brickCol, brickRow);
+    if (brickAtBall) {
+
+      let brickDestroyed = this.#brickManager.touchBrickAt(this.x, this.y, this.z);
+      //Bonus ?
+      if (brickDestroyed) {
+        playSound(getRandomInt(1) + SoundsFX.BRICK1);
+        this.#bonusManager.randomLaunch(this.x, this.y, this.z);
+      }
+      else {
+        playSound(SoundsFX.HARD_BRICK);
+      }
+      this.isAlive = false;
+    }
+  }
+
+}
+
+class BulletsManager {
+
+  #paddle;
+  #brickManager;
+  #bonusManager;
+  #inputController;
+
+  #iLiveBullets;
+  #bullets = [];
+  #lastFireTime;
+
+  constructor(paddle, brickManager, bonusManager, inputController) {
+    this.#bonusManager = bonusManager;
+    this.#paddle = paddle;
+    this.#brickManager = brickManager;
+    this.#inputController = inputController;
+    this.#lastFireTime = 0;
+    this.#iLiveBullets = 0;
+  }
+
+  launch() {
+    if (this.#iLiveBullets < constants.MAX_BULLETS) {
+      let now = performance.now();
+      if ((now - this.#lastFireTime) > constants.DELAY_BETWEEN_FIRES) {
+
+        let bullet1 = new FireBullet(this.#paddle.x - (constants.PADDLE_WIDTH/2), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
+        bullet1.launch(0, 0, constants.BULLET_LAUNCH_VX);
+        this.#bullets.push(bullet1);
+
+        let bullet2 = new FireBullet(this.#paddle.x + (constants.PADDLE_WIDTH/2), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
+        bullet2.launch(0, 0, constants.BULLET_LAUNCH_VX);
+        this.#bullets.push(bullet2);
+
+        this.#iLiveBullets+=2;
+        this.#lastFireTime = now;
+      }
+    }
+  }
+
+  update() {
+
+    for (let i = 0; i < this.#bullets.length; i++) {
+      let bullet = this.#bullets[i];
+      if (bullet.isAlive)
+        bullet.update();
+    }
+    this.#iLiveBullets = 0;
+    let filteredArray = [];
+    for (let bullet of this.#bullets) {
+      if (bullet.isAlive)
+      {
+        filteredArray.push(bullet);
+        this.#iLiveBullets++;
+      }
+      else {
+        //On supprime
+        bullet.destroy();
+      }
+    }
+    this.#bullets = filteredArray;
+  }
+  checkInput() {
+   
+    if (this.#inputController.inputMap["Space"]) {
+      this.launch();
+    }
+  }
+
+  reset() {
+    for (let bullet of this.#bullets) {
+        //On supprime
+        bullet.destroy();
+    }
+    this.#bullets = [];
+  }
+
+}
+
 class Paddle extends Entity {
 
   #inputController;
@@ -375,7 +586,7 @@ class Ball extends Entity {
   #lastDateTouch;
   #temporarySpeedFactor;
   #temporarySlowEndTime;
-  
+
   constructor(x, y, z, brickManager, paddle, bonusManager, bHide) {
     super(x, y, z);
     this.#brickManager = brickManager;
@@ -426,7 +637,9 @@ class Ball extends Entity {
   }
 
   destroy() {
+    this.#trail.dispose();
     this.gameObject.dispose();
+
   }
 
   launch(vx, vy, vz) {
@@ -476,101 +689,113 @@ class Ball extends Entity {
   update() {
 
     if (this.isAlive) {
-      
+
       if (this.#temporarySlowEndTime > 0 && this.#temporarySlowEndTime < performance.now())
         this.slowDown(false);
 
       this.applyVelocities(this.#temporarySpeedFactor * (constants.BALL_SPEED_FACTOR + this.#currentTurbo));
 
-      //Walls collisions
-      if (this.x > constants.WORLD_MAX_X) {
-        this.x = constants.WORLD_MAX_X;
-        this.vx = -this.vx;
-        //playSound(SoundsFX.BOING);
-      }
-      else if (this.x < constants.WORLD_MIN_X) {
-        this.x = constants.WORLD_MIN_X;
-        this.vx = -this.vx;
-      }
+      this.checkCollisions();
 
-      //Future use (bouncing ball ?)
-      if ((this.y > constants.WORLD_MAX_Y) || (this.y < constants.WORLD_MIN_Y)) {
-        this.vy = -this.vy;
-        //playSound(SoundsFX.BOING);
-      }
-
-      if ((this.z > constants.WORLD_MAX_Z)) {
-        //playSound(SoundsFX.BOING);
-        this.z = constants.WORLD_MAX_Z;
-        this.vz = -this.vz;
-      }
-      else if (this.z < constants.WORLD_MIN_Z) {
-        this.isAlive = false;
-        playSound(SoundsFX.LOOSE);
-      }
-
-
-      //Bricks collisions, col/row based, todo : pixel based more accurate
-      let brickCol = this.#brickManager.getBrickCol(this.x);
-      let brickRow = this.#brickManager.getBrickRow(this.z);
-
-      let brickAtBall = this.#brickManager.isBrickAtRowCol(brickCol, brickRow);
-      if (brickAtBall) {
-        let bBothTestFailed = true;
-        //On verifie d'ou on venait
-        let prevBrickCol = this.#brickManager.getBrickCol(this.prevX);
-        let prevBrickRow = this.#brickManager.getBrickRow(this.prevZ);
-
-        if (prevBrickCol != brickCol) {
-          let brickAtXminus = this.#brickManager.isBrickAtRowCol(prevBrickCol, brickRow);
-
-          if (!brickAtXminus) {
-            this.vx = -this.vx;
-            bBothTestFailed = false;
-          }
-        }
-        if (prevBrickRow != brickRow) {
-          let brickAtZminus = this.#brickManager.isBrickAtRowCol(brickCol, prevBrickRow);
-
-          if (!brickAtZminus) {
-            this.vz = -this.vz;
-            bBothTestFailed = false;
-          }
-        }
-
-        if (bBothTestFailed)
-          this.vz = -this.vz;
-
-
-        let brickDestroyed = this.#brickManager.touchBrickAt(this.x, this.y, this.z);
-        let currentDate = performance.now();
-        let delta = currentDate - this.#lastDateTouch;
-        this.#lastDateTouch = currentDate;
-        if (delta > 0 && delta < 2000) {
-          this.#comboTouch++;
-          this.#currentTurbo = Math.min(this.#comboTouch / 20, 2.5);
-        }
-        else
-          this.#comboTouch = 0;
-
-        //Bonus ?
-        if (brickDestroyed) {
-          playSound(getRandomInt(1) + SoundsFX.BRICK1);
-          this.#bonusManager.randomLaunch(this.x, this.y, this.z);
-        }
-        else {
-          playSound(SoundsFX.HARD_BRICK);
-        }
-
-      }
-
-      //Check collisions avec paddle
-      this.checkPaddleCollision();
     }
 
     this.updatePosition();
 
     return this.isAlive;
+  }
+
+  checkCollisions() {
+    this.checkWallsCollisions();
+    this.checkBricksCollisions();
+    this.checkPaddleCollision();
+  }
+
+  checkWallsCollisions() {
+
+    //Walls collisions
+    if (this.x > constants.WORLD_MAX_X) {
+      this.x = constants.WORLD_MAX_X;
+      this.vx = -this.vx;
+      //playSound(SoundsFX.BOING);
+    }
+    else if (this.x < constants.WORLD_MIN_X) {
+      this.x = constants.WORLD_MIN_X;
+      this.vx = -this.vx;
+    }
+
+    //Future use (bouncing ball ?)
+    if ((this.y > constants.WORLD_MAX_Y) || (this.y < constants.WORLD_MIN_Y)) {
+      this.vy = -this.vy;
+      //playSound(SoundsFX.BOING);
+    }
+
+    if ((this.z > constants.WORLD_MAX_Z)) {
+      //playSound(SoundsFX.BOING);
+      this.z = constants.WORLD_MAX_Z;
+      this.vz = -this.vz;
+    }
+    else if (this.z < constants.WORLD_MIN_Z) {
+      this.isAlive = false;
+      playSound(SoundsFX.LOOSE);
+    }
+
+  }
+
+  checkBricksCollisions() {
+
+    //Bricks collisions, col/row based, todo : pixel based more accurate
+    let brickCol = this.#brickManager.getBrickCol(this.x);
+    let brickRow = this.#brickManager.getBrickRow(this.z);
+
+    let brickAtBall = this.#brickManager.isBrickAtRowCol(brickCol, brickRow);
+    if (brickAtBall) {
+      let bBothTestFailed = true;
+      //On verifie d'ou on venait
+      let prevBrickCol = this.#brickManager.getBrickCol(this.prevX);
+      let prevBrickRow = this.#brickManager.getBrickRow(this.prevZ);
+
+      if (prevBrickCol != brickCol) {
+        let brickAtXminus = this.#brickManager.isBrickAtRowCol(prevBrickCol, brickRow);
+
+        if (!brickAtXminus) {
+          this.vx = -this.vx;
+          bBothTestFailed = false;
+        }
+      }
+      if (prevBrickRow != brickRow) {
+        let brickAtZminus = this.#brickManager.isBrickAtRowCol(brickCol, prevBrickRow);
+
+        if (!brickAtZminus) {
+          this.vz = -this.vz;
+          bBothTestFailed = false;
+        }
+      }
+
+      if (bBothTestFailed)
+        this.vz = -this.vz;
+
+
+      let brickDestroyed = this.#brickManager.touchBrickAt(this.x, this.y, this.z);
+      let currentDate = performance.now();
+      let delta = currentDate - this.#lastDateTouch;
+      this.#lastDateTouch = currentDate;
+      if (delta > 0 && delta < 2000) {
+        this.#comboTouch++;
+        this.#currentTurbo = Math.min(this.#comboTouch / 20, 2.5);
+      }
+      else
+        this.#comboTouch = 0;
+
+      //Bonus ?
+      if (brickDestroyed) {
+        playSound(getRandomInt(1) + SoundsFX.BRICK1);
+        this.#bonusManager.randomLaunch(this.x, this.y, this.z);
+      }
+      else {
+        playSound(SoundsFX.HARD_BRICK);
+      }
+
+    }
   }
 
   checkPaddleCollision() {
@@ -610,7 +835,7 @@ class BallsManager {
     this.#brickManager = brickManager;
     this.#bonusManager = bonusManager;
 
-    
+
     let ball1 = new Ball(this.#paddle.x, 0, constants.BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, false);
     let ball2 = new Ball(this.#paddle.x, 0, constants.BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, true);
     let ball3 = new Ball(this.#paddle.x, 0, constants.BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, true);
@@ -618,7 +843,7 @@ class BallsManager {
     this.#balls.push(ball1);
     this.#balls.push(ball2);
     this.#balls.push(ball3);
-    
+
 
   }
   positionMainBallAtPaddle() {
@@ -643,14 +868,14 @@ class BallsManager {
   }
 
   slowDown(bSlowDown) {
-    for (let ball of this.#balls) 
+    for (let ball of this.#balls)
       ball.slowDown(bSlowDown);
   }
 
   glue() {
-    for (let ball of this.#balls) 
+    for (let ball of this.#balls)
       ball.glue();
-      
+
   }
 
   bonusMultiBalls() {
@@ -688,18 +913,16 @@ class BallsManager {
       if (ball.update())
         this.#iLiveBalls++;
     }
-    
+
     if (bPlaying && this.#iLiveBalls == 0)
-        changeGameState(States.STATE_LOOSE);
+      changeGameState(States.STATE_LOOSE);
 
   }
- 
+
 
 }
 
 
-const BONUS_RADIUS = 1.2;
-const BONUS_HEIGHT = 5;
 
 
 
@@ -815,8 +1038,8 @@ class BonusObj extends Entity {
   }
 
   checkPaddleCollision() {
-    let lx = this.x - BONUS_HEIGHT / 2;
-    let rx = this.x + BONUS_HEIGHT / 2;
+    let lx = this.x - constants.BONUS_HEIGHT / 2;
+    let rx = this.x + constants.BONUS_HEIGHT / 2;
 
     let plx = this.#paddle.getLeftX();
     let prx = this.#paddle.getRightX();
@@ -848,8 +1071,8 @@ class BonusManager {
     this.#paddle = paddle;
 
     const options = {
-      height: BONUS_HEIGHT,
-      radius: BONUS_RADIUS,
+      height: constants.BONUS_HEIGHT,
+      radius: constants.BONUS_RADIUS,
     };
 
     this.#bonusesTypeDef = [
@@ -878,53 +1101,53 @@ class BonusManager {
         callback: this.bonusGrow.bind(this)
       },
       {
-         model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
-         color: new Color3(1, 1, 0),                       //JAUNE VIF
-         material: new StandardMaterial("bonusMat3"),
-         score: 10,
-         probability: 5,
-         callback: this.bonusMultiBalls.bind(this)
-       },
-     /*  {
-         model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
-         color: new Color3(1, 0.0, 0.0),                 //ROUGE
-         material: new StandardMaterial("bonusMat4"),
-         score: 10,
-         probability: 5,
-         callback: this.noBonus.bind(this)
-       },
-       {
-         model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
-         color: new Color3(1, 1, 1),                     //BLANC
-         material: new StandardMaterial("bonusMat5"),
-         score: 10,
-         probability: 5,
-         callback: this.noBonus.bind(this)
-       },
-       {
-         model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
-         color: new Color3(1, 0.6, 0),                   //ORANGE
-         material: new StandardMaterial("bonusMat6"),
-         score: 10,
-         probability: 5,
-         callback: this.noBonus.bind(this)
-       },
-       {
-         model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
-         color: new Color3(0, 1.0, 1.0),               //TURQUOISE
-         material: new StandardMaterial("bonusMat7"),
-         score: 10,
-         probability: 5,
-         callback: this.noBonus.bind(this)
-       },
-       {
-         model: MeshBuilder.CreateCapsule(`bonusModel8`, options),
-         color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
-         material: new StandardMaterial("bonusMat8"),
-         score: 10,
-         probability: 5,
-         callback: this.noBonus.bind(this)
-       }*/
+        model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
+        color: new Color3(1, 1, 0),                       //JAUNE VIF
+        material: new StandardMaterial("bonusMat3"),
+        score: 10,
+        probability: 5,
+        callback: this.bonusMultiBalls.bind(this)
+      },
+      /*  {
+          model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
+          color: new Color3(1, 0.0, 0.0),                 //ROUGE
+          material: new StandardMaterial("bonusMat4"),
+          score: 10,
+          probability: 5,
+          callback: this.noBonus.bind(this)
+        },
+        {
+          model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
+          color: new Color3(1, 1, 1),                     //BLANC
+          material: new StandardMaterial("bonusMat5"),
+          score: 10,
+          probability: 5,
+          callback: this.noBonus.bind(this)
+        },
+        {
+          model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
+          color: new Color3(1, 0.6, 0),                   //ORANGE
+          material: new StandardMaterial("bonusMat6"),
+          score: 10,
+          probability: 5,
+          callback: this.noBonus.bind(this)
+        },
+        {
+          model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
+          color: new Color3(0, 1.0, 1.0),               //TURQUOISE
+          material: new StandardMaterial("bonusMat7"),
+          score: 10,
+          probability: 5,
+          callback: this.noBonus.bind(this)
+        },
+        {
+          model: MeshBuilder.CreateCapsule(`bonusModel8`, options),
+          color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
+          material: new StandardMaterial("bonusMat8"),
+          score: 10,
+          probability: 5,
+          callback: this.noBonus.bind(this)
+        }*/
     ];
 
     this.#parent = new TransformNode("bonuses");
@@ -1369,7 +1592,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
           type = Scalar.Clamp(Math.round(type), 0, (this.#bricksTypeDef.length - 1));
           let uneBrique = new BrickObj(index, this.#bricksTypeDef[type], x, y, z, this.#parent, this.#scene);
 
-          
+
           this.#bricks[index] = uneBrique;
           this.#bricks[index].isAlive = true;
           //On la cache par defaut pour l'anim
@@ -1410,7 +1633,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
           var brickFallingAnim = new Animation("brickFalling", "position", frameRate, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
           var motionKeys = [];
           //modelCredits.text = "Happy Holidays"; 
-          motionKeys.push({ frame: startFrame, value: new Vector3(x+Scalar.RandomRange(-10, 10), Scalar.RandomRange(80, 200), z+Scalar.RandomRange(10, 30)) });
+          motionKeys.push({ frame: startFrame, value: new Vector3(x + Scalar.RandomRange(-10, 10), Scalar.RandomRange(80, 200), z + Scalar.RandomRange(10, 30)) });
           motionKeys.push({ frame: endFrame, value: new Vector3(x, y, z) });
           brickFallingAnim.setKeys(motionKeys);
 
@@ -1540,10 +1763,11 @@ class BreackOut {
 
   #paddle;
   #walls;
-  
+
   #brickManager;
   #ballsManager;
   #bonusManager;
+  #bulletsManager;
   #inputController;
   #bInspector = false;
 
@@ -1700,6 +1924,8 @@ class BreackOut {
 
 
     this.#ballsManager = new BallsManager(this.#paddle, this.#brickManager, this.#bonusManager);
+    
+    this.#bulletsManager = new BulletsManager(this.#paddle, this.#brickManager, this.#bonusManager, this.#inputController);
 
     //Ok it*s ugly but it's only a game not a nuclear plant !
     this.#bonusManager.setBallsManager(this.#ballsManager);
@@ -1951,8 +2177,8 @@ class BreackOut {
     var modelCreditsMotionKeys = [];
     //modelCredits.text = "Happy Holidays"; 
     modelCreditsMotionKeys.push({ frame: startFrame, value: -200 });
-    modelCreditsMotionKeys.push({ frame: endFrame*0.3, value: 50 });
-    modelCreditsMotionKeys.push({ frame: endFrame*0.9, value: 50 });
+    modelCreditsMotionKeys.push({ frame: endFrame * 0.3, value: 50 });
+    modelCreditsMotionKeys.push({ frame: endFrame * 0.9, value: 50 });
     modelCreditsMotionKeys.push({ frame: endFrame, value: -200 });
     modelCreditsMotion.setKeys(modelCreditsMotionKeys);
 
@@ -1962,8 +2188,8 @@ class BreackOut {
     var musicCreditsMotionKeys = [];
     //musicCredits.text = "Happy Holidays"; 
     musicCreditsMotionKeys.push({ frame: startFrame, value: -300 });
-    musicCreditsMotionKeys.push({ frame: endFrame*0.3, value: 200 });
-    musicCreditsMotionKeys.push({ frame: endFrame*0.9, value: 200 });
+    musicCreditsMotionKeys.push({ frame: endFrame * 0.3, value: 200 });
+    musicCreditsMotionKeys.push({ frame: endFrame * 0.9, value: 200 });
     musicCreditsMotionKeys.push({ frame: endFrame, value: -300 });
     musicCreditsMotion.setKeys(musicCreditsMotionKeys);
 
@@ -1973,8 +2199,8 @@ class BreackOut {
     var codingCreditsMotionKeys = [];
     //codingCredits.text = "Happy Holidays"; 
     codingCreditsMotionKeys.push({ frame: startFrame, value: -400 });
-    codingCreditsMotionKeys.push({ frame: endFrame*0.3, value: 350 });
-    codingCreditsMotionKeys.push({ frame: endFrame*0.9, value: 350 });
+    codingCreditsMotionKeys.push({ frame: endFrame * 0.3, value: 350 });
+    codingCreditsMotionKeys.push({ frame: endFrame * 0.9, value: 350 });
     codingCreditsMotionKeys.push({ frame: endFrame, value: -400 });
     codingCreditsMotion.setKeys(codingCreditsMotionKeys);
 
@@ -2113,6 +2339,10 @@ class BreackOut {
         //Update paddle
         this.#paddle.checkInput();
         this.#paddle.update();
+
+        this.#bulletsManager.checkInput();
+        this.#bulletsManager.update();
+
         this.#ballsManager.positionMainBallAtPaddle();
         //Not a real update
         this.#ballsManager.update(false);
@@ -2132,6 +2362,7 @@ class BreackOut {
 
         this.#ballsManager.reset();
         this.#bonusManager.reset();
+        this.#bulletsManager.reset();
 
         //Animation level
         changeGameState(States.STATE_LEVEL_WELDING);
@@ -2141,7 +2372,7 @@ class BreackOut {
       }
       else if (gameState == States.STATE_LEVEL_WELDING) {
         //RAS
-      }      
+      }
       else if (gameState == States.STATE_LEVEL_READY) {
         //Random music
         /*        let musicId = getRandomInt(this.#musics.length-1);
@@ -2149,10 +2380,12 @@ class BreackOut {
 
         this.#ballsManager.reset();
         this.#bonusManager.reset();
+        this.#bulletsManager.reset();
         this.#timeToLaunch = now + 1000;
         changeGameState(States.STATE_LAUNCH);
       }
       else if (gameState == States.STATE_LOOSE) {
+        this.#bulletsManager.update();
         if (nbLives > 0) {
           nbLives--;
           this.updateTextLives();
@@ -2177,6 +2410,9 @@ class BreackOut {
         //Update paddle
         this.#paddle.checkInput();
         this.#paddle.update();
+
+        this.#bulletsManager.checkInput();
+        this.#bulletsManager.update();
 
         //Update ball
         this.#ballsManager.update(true);
@@ -2253,6 +2489,7 @@ class BreackOut {
     this.#brickManager.loadLevel();
     this.#ballsManager.reset();
     this.#bonusManager.reset();
+    this.#bulletsManager.reset();
 
     nbLives = constants.START_LIVES;
     if (currentScore > currentHighScore)

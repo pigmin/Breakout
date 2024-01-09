@@ -51,3 +51,13 @@ export const START_LIVES = 6;
 export const MAX_LIVES = 12;
 
 export const START_BUTTON_MESH_TARGET = "Object_351";
+
+export const BONUS_RADIUS = 1.2;
+export const BONUS_HEIGHT = 5;
+
+export const MAX_BULLETS = 8;
+export const BULLET_LAUNCH_VX = 2;
+export const DELAY_BETWEEN_FIRES = 250;
+export const BULLET_RADIUS = 0.4;
+export const BULLET_HEIGHT = 4;
+export const BULLET_RADIUS_TOP = 0.8;
