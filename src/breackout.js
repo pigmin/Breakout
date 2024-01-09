@@ -475,39 +475,40 @@ class Ball extends Entity {
 
   update() {
 
-    if (this.#temporarySlowEndTime > 0 && this.#temporarySlowEndTime < performance.now())
-      this.slowDown(false);
-
-    this.applyVelocities(this.#temporarySpeedFactor * (constants.BALL_SPEED_FACTOR + this.#currentTurbo));
-
-    //Walls collisions
-    if (this.x > constants.WORLD_MAX_X) {
-      this.x = constants.WORLD_MAX_X;
-      this.vx = -this.vx;
-      //playSound(SoundsFX.BOING);
-    }
-    else if (this.x < constants.WORLD_MIN_X) {
-      this.x = constants.WORLD_MIN_X;
-      this.vx = -this.vx;
-    }
-
-    //Future use (bouncing ball ?)
-    if ((this.y > constants.WORLD_MAX_Y) || (this.y < constants.WORLD_MIN_Y)) {
-      this.vy = -this.vy;
-      //playSound(SoundsFX.BOING);
-    }
-
-    if ((this.z > constants.WORLD_MAX_Z)) {
-      //playSound(SoundsFX.BOING);
-      this.z = constants.WORLD_MAX_Z;
-      this.vz = -this.vz;
-    }
-    else if (this.z < constants.WORLD_MIN_Z) {
-      this.isAlive = false;
-      playSound(SoundsFX.LOOSE);
-    }
-
     if (this.isAlive) {
+      
+      if (this.#temporarySlowEndTime > 0 && this.#temporarySlowEndTime < performance.now())
+        this.slowDown(false);
+
+      this.applyVelocities(this.#temporarySpeedFactor * (constants.BALL_SPEED_FACTOR + this.#currentTurbo));
+
+      //Walls collisions
+      if (this.x > constants.WORLD_MAX_X) {
+        this.x = constants.WORLD_MAX_X;
+        this.vx = -this.vx;
+        //playSound(SoundsFX.BOING);
+      }
+      else if (this.x < constants.WORLD_MIN_X) {
+        this.x = constants.WORLD_MIN_X;
+        this.vx = -this.vx;
+      }
+
+      //Future use (bouncing ball ?)
+      if ((this.y > constants.WORLD_MAX_Y) || (this.y < constants.WORLD_MIN_Y)) {
+        this.vy = -this.vy;
+        //playSound(SoundsFX.BOING);
+      }
+
+      if ((this.z > constants.WORLD_MAX_Z)) {
+        //playSound(SoundsFX.BOING);
+        this.z = constants.WORLD_MAX_Z;
+        this.vz = -this.vz;
+      }
+      else if (this.z < constants.WORLD_MIN_Z) {
+        this.isAlive = false;
+        playSound(SoundsFX.LOOSE);
+      }
+
 
       //Bricks collisions, col/row based, todo : pixel based more accurate
       let brickCol = this.#brickManager.getBrickCol(this.x);
