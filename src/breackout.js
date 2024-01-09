@@ -61,65 +61,15 @@ import { AdvancedDynamicTexture, Button, Control, TextBlock } from "@babylonjs/g
 
 import { levelsDef } from "./levels";
 
-const BRICKS_ROWS = 25;
-const BRICKS_COLS = 13;
-const BRICK_WIDTH = (18.0 / 3.0);
-const BRICK_DEPTH = (7.0 / 3.0);
-const BRICK_PADDING_X = (1.0 / 3.0);
-const BRICK_PADDING_Z = (1.0 / 3.0);
+import * as constants from "./constants";
 
-let bricksTypeDef = [];
-
-
-const GAME_AREA_WIDTH = (BRICKS_COLS * BRICK_WIDTH);
-const GAME_AREA_DEPTH = (BRICKS_ROWS * BRICK_DEPTH);
-const WALLS_DEPTH = GAME_AREA_DEPTH + 45;
-
-const WALLS_HEIGHT = 5;
-const WALLS_THICKNESS = 2;
-
-const BALL_SPEED_FACTOR = 2.2;
-
-const MIN_P_VELOCITY = 0.2;
-const DRAG_FORCE = 0.6;
-const PADDLE_ACC_X = 0.7;
-const MAX_VELOCITY = 14;
-
-
-const BASE_Z_BALL = -30;
-const BALL_RADIUS = 0.75;
-const PADDLE_WIDTH = (30 / 3.0);
-const PADDLE_RADIUS = ((5 / 2) / 3.0);
-const BASE_Z_PADDLE = BASE_Z_BALL - PADDLE_RADIUS * 2;
-const OFF_AREA = BASE_Z_PADDLE - PADDLE_RADIUS * 32;
-
-const WORLD_MIN_X = -BRICK_WIDTH + (WALLS_THICKNESS / 2) + BALL_RADIUS;
-const WORLD_MAX_X = (GAME_AREA_WIDTH) - (WALLS_THICKNESS / 2) - BALL_RADIUS;
-
-
-const WORLD_MIN_Y = -5;
-const WORLD_MAX_Y = 5;
-
-const WORLD_MIN_Z = OFF_AREA;
-const WORLD_MAX_Z = GAME_AREA_DEPTH;
-
-const BALL_LAUNCH_VX = 0.15;
-const BALL_LAUNCH_VZ = 0.5;
-
-const BONUS_VX = 0;
-const BONUS_VZ = -0.5;
-
-const START_LIVES = 6;
-const MAX_LIVES = 12;
-
-const START_BUTTON_MESH_TARGET = "Object_351";
 //const StartButtonMeshTarget = "panel_plate.001_140";
 
 let explosionParticleSystem;
 let shadowGenerator;
 
 
-let nbLives = START_LIVES;
+let nbLives = constants.START_LIVES;
 let currentScore = 0;
 let currentHighScore = 0;
 let currentLevel = 1;
@@ -208,8 +158,8 @@ class Paddle extends Entity {
   #temporaryGrowFactor;
   #temporaryGrowEndTime;
 
-  #paddleMinX = (WORLD_MIN_X + PADDLE_WIDTH / 2) - BALL_RADIUS;
-  #paddleMaxX = (WORLD_MAX_X - PADDLE_WIDTH / 2) + BALL_RADIUS;
+  #paddleMinX = (constants.WORLD_MIN_X + constants.PADDLE_WIDTH / 2) - constants.BALL_RADIUS;
+  #paddleMaxX = (constants.WORLD_MAX_X - constants.PADDLE_WIDTH / 2) + constants.BALL_RADIUS;
 
 
   constructor(x, y, z, inputController, scene) {
@@ -217,7 +167,7 @@ class Paddle extends Entity {
 
     this.#scene = scene;
     this.#inputController = inputController;
-    this.gameObject = new MeshBuilder.CreateCapsule("capsule", { radius: PADDLE_RADIUS, capSubdivisions: 8, subdivisions: 1, tessellation: 8, height: PADDLE_WIDTH, orientation: Vector3.Left() });
+    this.gameObject = new MeshBuilder.CreateCapsule("capsule", { radius: constants.PADDLE_RADIUS, capSubdivisions: 8, subdivisions: 1, tessellation: 8, height: constants.PADDLE_WIDTH, orientation: Vector3.Left() });
     shadowGenerator.addShadowCaster(this.gameObject);
 
     let trailMaterial = new StandardMaterial('reactMat');
@@ -227,15 +177,15 @@ class Paddle extends Entity {
     trailMaterial.specularColor = new Color3(0.9, 0.6, 0.6);
 
 
-    let lReact = new MeshBuilder.CreateCylinder("lReact", { height: PADDLE_RADIUS + 0.6, diameter: PADDLE_RADIUS * 2.5 });
-    lReact.position.x = -PADDLE_WIDTH / 3;
+    let lReact = new MeshBuilder.CreateCylinder("lReact", { height: constants.PADDLE_RADIUS + 0.6, diameter: constants.PADDLE_RADIUS * 2.5 });
+    lReact.position.x = -constants.PADDLE_WIDTH / 3;
     lReact.rotation.z = -Math.PI / 2;
 
     lReact.material = trailMaterial;
     lReact.setParent(this.gameObject);
 
-    let rReact = new MeshBuilder.CreateCylinder("rReact", { height: PADDLE_RADIUS + 0.6, diameter: PADDLE_RADIUS * 2.5 });
-    rReact.position.x = PADDLE_WIDTH / 3;
+    let rReact = new MeshBuilder.CreateCylinder("rReact", { height: constants.PADDLE_RADIUS + 0.6, diameter: constants.PADDLE_RADIUS * 2.5 });
+    rReact.position.x = constants.PADDLE_WIDTH / 3;
     rReact.rotation.z = -Math.PI / 2;
     rReact.material = trailMaterial;
     rReact.setParent(this.gameObject);
@@ -306,22 +256,22 @@ class Paddle extends Entity {
   checkInput() {
 
 
-    if (Math.abs(this.vx) > MIN_P_VELOCITY)
-      this.vx = this.vx * DRAG_FORCE;
+    if (Math.abs(this.vx) > constants.MIN_P_VELOCITY)
+      this.vx = this.vx * constants.DRAG_FORCE;
     else
       this.vx = 0;
 
 
     console.log(this.#inputController.xpos);
     if (this.#inputController.inputMap["ArrowLeft"] || this.#inputController.moveX < 0) {
-      this.vx -= PADDLE_ACC_X;
-      if (this.vx < -MAX_VELOCITY)
-        this.vx = -MAX_VELOCITY;
+      this.vx -= constants.PADDLE_ACC_X;
+      if (this.vx < -constants.MAX_VELOCITY)
+        this.vx = -constants.MAX_VELOCITY;
     }
     else if (this.#inputController.inputMap["ArrowRight"] || this.#inputController.moveX > 0) {
-      this.vx += PADDLE_ACC_X;
-      if (this.vx > MAX_VELOCITY)
-        this.vx = MAX_VELOCITY;
+      this.vx += constants.PADDLE_ACC_X;
+      if (this.vx > constants.MAX_VELOCITY)
+        this.vx = constants.MAX_VELOCITY;
     }
   }
 
@@ -343,11 +293,11 @@ class Paddle extends Entity {
   }
 
   getLeftX() {
-    return this.x - (PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
+    return this.x - (constants.PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
   }
 
   getRightX() {
-    return this.x + (PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
+    return this.x + (constants.PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
   }
 
   grow(bGrowing) {
@@ -368,8 +318,8 @@ class Paddle extends Entity {
     }
     // this.gameObject.scaling.x = this.#temporaryGrowFactor;
     //On recalcule les min/max
-    this.#paddleMinX = (WORLD_MIN_X + (PADDLE_WIDTH * this.#temporaryGrowFactor) / 2) - BALL_RADIUS;
-    this.#paddleMaxX = (WORLD_MAX_X - (PADDLE_WIDTH * this.#temporaryGrowFactor) / 2) + BALL_RADIUS;
+    this.#paddleMinX = (constants.WORLD_MIN_X + (constants.PADDLE_WIDTH * this.#temporaryGrowFactor) / 2) - constants.BALL_RADIUS;
+    this.#paddleMaxX = (constants.WORLD_MAX_X - (constants.PADDLE_WIDTH * this.#temporaryGrowFactor) / 2) + constants.BALL_RADIUS;
   }
 
   reset() {
@@ -445,7 +395,7 @@ class Ball extends Entity {
 
     const options = {
       segments: 16,
-      diameter: BALL_RADIUS * 2
+      diameter: constants.BALL_RADIUS * 2
     };
 
     // Our built-in 'sphere' shape.
@@ -497,7 +447,7 @@ class Ball extends Entity {
     this.#lastDateTouch = 0;
     this.x = this.#paddle.x;
     this.y = 0;
-    this.z = BASE_Z_BALL;
+    this.z = constants.BASE_Z_BALL;
     this.vx = 0;
     this.vy = 0;
     this.vz = 0;
@@ -528,31 +478,31 @@ class Ball extends Entity {
     if (this.#temporarySlowEndTime > 0 && this.#temporarySlowEndTime < performance.now())
       this.slowDown(false);
 
-    this.applyVelocities(this.#temporarySpeedFactor * (BALL_SPEED_FACTOR + this.#currentTurbo));
+    this.applyVelocities(this.#temporarySpeedFactor * (constants.BALL_SPEED_FACTOR + this.#currentTurbo));
 
     //Walls collisions
-    if (this.x > WORLD_MAX_X) {
-      this.x = WORLD_MAX_X;
+    if (this.x > constants.WORLD_MAX_X) {
+      this.x = constants.WORLD_MAX_X;
       this.vx = -this.vx;
       //playSound(SoundsFX.BOING);
     }
-    else if (this.x < WORLD_MIN_X) {
-      this.x = WORLD_MIN_X;
+    else if (this.x < constants.WORLD_MIN_X) {
+      this.x = constants.WORLD_MIN_X;
       this.vx = -this.vx;
     }
 
     //Future use (bouncing ball ?)
-    if ((this.y > WORLD_MAX_Y) || (this.y < WORLD_MIN_Y)) {
+    if ((this.y > constants.WORLD_MAX_Y) || (this.y < constants.WORLD_MIN_Y)) {
       this.vy = -this.vy;
       //playSound(SoundsFX.BOING);
     }
 
-    if ((this.z > WORLD_MAX_Z)) {
+    if ((this.z > constants.WORLD_MAX_Z)) {
       //playSound(SoundsFX.BOING);
-      this.z = WORLD_MAX_Z;
+      this.z = constants.WORLD_MAX_Z;
       this.vz = -this.vz;
     }
-    else if (this.z < WORLD_MIN_Z) {
+    else if (this.z < constants.WORLD_MIN_Z) {
       this.isAlive = false;
       playSound(SoundsFX.LOOSE);
     }
@@ -623,17 +573,17 @@ class Ball extends Entity {
   }
 
   checkPaddleCollision() {
-    let lx = this.x - BALL_RADIUS;
-    let rx = this.x + BALL_RADIUS;
+    let lx = this.x - constants.BALL_RADIUS;
+    let rx = this.x + constants.BALL_RADIUS;
 
     let plx = this.#paddle.getLeftX();
     let prx = this.#paddle.getRightX();
 
     let dz = Math.sqrt((this.z - this.#paddle.z) * (this.z - this.#paddle.z));
-    if (this.isAlive && this.z < (this.#paddle.z + PADDLE_RADIUS) && dz < 1 && (lx <= prx && rx >= plx)) {
+    if (this.isAlive && this.z < (this.#paddle.z + constants.PADDLE_RADIUS) && dz < 1 && (lx <= prx && rx >= plx)) {
       this.#comboTouch = 0;
       this.vz = -this.vz;
-      this.z = this.#paddle.z + PADDLE_RADIUS;
+      this.z = this.#paddle.z + constants.PADDLE_RADIUS;
       let distanceFromPaddle = (this.x - this.#paddle.x);
       this.vx = distanceFromPaddle * 0.12;
       playSound(SoundsFX.PADDLE);
@@ -660,9 +610,9 @@ class BallsManager {
     this.#bonusManager = bonusManager;
 
     
-    let ball1 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, false);
-    let ball2 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, true);
-    let ball3 = new Ball(this.#paddle.x, 0, BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, true);
+    let ball1 = new Ball(this.#paddle.x, 0, constants.BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, false);
+    let ball2 = new Ball(this.#paddle.x, 0, constants.BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, true);
+    let ball3 = new Ball(this.#paddle.x, 0, constants.BASE_Z_BALL, this.#brickManager, this.#paddle, this.#bonusManager, true);
 
     this.#balls.push(ball1);
     this.#balls.push(ball2);
@@ -721,9 +671,9 @@ class BallsManager {
         ball.y = activeBall.y;
         ball.z = activeBall.z;
         if (bPair)
-          ball.launch(-BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          ball.launch(-constants.BALL_LAUNCH_VX, 0, constants.BALL_LAUNCH_VZ);
         else
-          ball.launch(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          ball.launch(constants.BALL_LAUNCH_VX, 0, constants.BALL_LAUNCH_VZ);
 
         bPair = !bPair;
       }
@@ -750,7 +700,7 @@ class BallsManager {
 const BONUS_RADIUS = 1.2;
 const BONUS_HEIGHT = 5;
 
-let bonusesTypeDef = [];
+
 
 class BonusObj extends Entity {
 
@@ -761,6 +711,7 @@ class BonusObj extends Entity {
   #explosionParticleSystem
   #amountRotZ;
   #amountRotX;
+
 
   constructor(index, bonusType, x, y, z, parent, paddle) {
     super(x, y, z);
@@ -825,21 +776,21 @@ class BonusObj extends Entity {
       this.gameObject.rotation.z += this.#amountRotZ;
 
       //Walls collisions
-      if ((this.x > WORLD_MAX_X) || (this.x < WORLD_MIN_X)) {
+      if ((this.x > constants.WORLD_MAX_X) || (this.x < constants.WORLD_MIN_X)) {
         this.vx = -this.vx;
         //playSound(SoundsFX.BOING);
       }
 
-      if ((this.y > WORLD_MAX_Y) || (this.y < WORLD_MIN_Y)) {
+      if ((this.y > constants.WORLD_MAX_Y) || (this.y < constants.WORLD_MIN_Y)) {
         this.vy = -this.vy;
         //playSound(SoundsFX.BOING);
       }
 
-      if ((this.z > WORLD_MAX_Z)) {
+      if ((this.z > constants.WORLD_MAX_Z)) {
         //playSound(SoundsFX.BOING);
         this.vz = -this.vz;
       }
-      else if (this.z < WORLD_MIN_Z) {
+      else if (this.z < constants.WORLD_MIN_Z) {
         this.isAlive = false;
         //playSound(SoundsFX.LOOSE);
       }
@@ -889,6 +840,7 @@ class BonusManager {
   #ballsManager;
   #bonuses = [];
   #iLiveBonuses = 0;
+  #bonusesTypeDef = [];
 
   constructor(scene, paddle) {
     this.#scene = scene;
@@ -899,7 +851,7 @@ class BonusManager {
       radius: BONUS_RADIUS,
     };
 
-    bonusesTypeDef = [
+    this.#bonusesTypeDef = [
       {
         model: MeshBuilder.CreateCapsule(`bonusModel0`, options),
         color: new Color3(0.0, 1, 0.0),                   //VERT
@@ -976,7 +928,7 @@ class BonusManager {
 
     this.#parent = new TransformNode("bonuses");
 
-    for (let bonusesType of bonusesTypeDef) {
+    for (let bonusesType of this.#bonusesTypeDef) {
       bonusesType.model.receiveShadows = false;
       bonusesType.model.isVisible = false;
 
@@ -1023,7 +975,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   bonusLife() {
-    if (nbLives < MAX_LIVES) {
+    if (nbLives < constants.MAX_LIVES) {
       nbLives++;
       playSound(SoundsFX.BONUS_LIFE);
     }
@@ -1070,15 +1022,15 @@ brickType.material.diffuseTexture.vScale = 1;*/
   launch(x, y, z) {
 
     //Random for now but need to add some coeff based on levels or brick type
-    let type = getRandomInt(bonusesTypeDef.length - 1);
+    let type = getRandomInt(this.#bonusesTypeDef.length - 1);
     //    let type = getRandomInt(bonusesTypeDef.length - 1);
 
-    let unBonus = new BonusObj(this.#iLiveBonuses, bonusesTypeDef[type], x, y, z, this.#parent, this.#paddle)
+    let unBonus = new BonusObj(this.#iLiveBonuses, this.#bonusesTypeDef[type], x, y, z, this.#parent, this.#paddle)
 
     this.#bonuses.push(unBonus);
     this.#iLiveBonuses++;
 
-    unBonus.launch(BONUS_VX, 0, BONUS_VZ);
+    unBonus.launch(constants.BONUS_VX, 0, constants.BONUS_VZ);
   }
 
   update() {
@@ -1232,25 +1184,30 @@ class BrickObj extends Entity {
 
 }
 
+
+
+
 class BrickManager {
 
   #scene;
 
   #parent;
-  #bricks = new Array(BRICKS_ROWS * BRICKS_COLS);
+  #bricks = new Array(constants.BRICKS_ROWS * constants.BRICKS_COLS);
   #iLiveBricks = 0;
+
+  #bricksTypeDef = [];
 
   constructor(scene) {
     this.#scene = scene;
 
     const options = {
-      width: BRICK_WIDTH - BRICK_PADDING_X,
+      width: constants.BRICK_WIDTH - constants.BRICK_PADDING_X,
       height: 2,
-      depth: BRICK_DEPTH - BRICK_PADDING_Z,
+      depth: constants.BRICK_DEPTH - constants.BRICK_PADDING_Z,
       wrap: true,
     };
 
-    bricksTypeDef = [
+    this.#bricksTypeDef = [
       {
         model: MeshBuilder.CreateBox(`brickModel0`, options),
         color: new Color3(0.0, 1, 0.0),                   //VERT
@@ -1325,7 +1282,7 @@ class BrickManager {
 
     this.#parent = new TransformNode("bricks");
 
-    for (let brickType of bricksTypeDef) {
+    for (let brickType of this.#bricksTypeDef) {
       brickType.model.receiveShadows = false;
       brickType.model.isVisible = false;
 
@@ -1387,13 +1344,13 @@ brickType.material.diffuseTexture.vScale = 1;*/
 
     let currentLevelMatrix = levelsDef[levelToLoad - 1];
 
-    for (let j = 0; j < BRICKS_ROWS; j++) {
-      for (let i = 0; i < BRICKS_COLS; i++) {
-        let index = j * BRICKS_COLS + i;
-        let x = i * BRICK_WIDTH;
+    for (let j = 0; j < constants.BRICKS_ROWS; j++) {
+      for (let i = 0; i < constants.BRICKS_COLS; i++) {
+        let index = j * constants.BRICKS_COLS + i;
+        let x = i * constants.BRICK_WIDTH;
         let y = 0;
-        let z = j * BRICK_DEPTH;
-        let car = currentLevelMatrix[(BRICKS_ROWS - 1) - j].charAt(i);
+        let z = j * constants.BRICK_DEPTH;
+        let car = currentLevelMatrix[(constants.BRICKS_ROWS - 1) - j].charAt(i);
         if (car === " ") {
           let uneBrique = new BrickObj(index, null, x, y, z, this.#parent, this.#scene);
           this.#bricks[index] = uneBrique;
@@ -1408,8 +1365,8 @@ brickType.material.diffuseTexture.vScale = 1;*/
             type = 0;
           }
 
-          type = Scalar.Clamp(Math.round(type), 0, (bricksTypeDef.length - 1));
-          let uneBrique = new BrickObj(index, bricksTypeDef[type], x, y, z, this.#parent, this.#scene);
+          type = Scalar.Clamp(Math.round(type), 0, (this.#bricksTypeDef.length - 1));
+          let uneBrique = new BrickObj(index, this.#bricksTypeDef[type], x, y, z, this.#parent, this.#scene);
 
           
           this.#bricks[index] = uneBrique;
@@ -1441,12 +1398,12 @@ brickType.material.diffuseTexture.vScale = 1;*/
     const endFrame = 60;
 
     let callbackFuncSet = false;
-    for (let j = 0; j < BRICKS_ROWS; j++) {
-      for (let i = 0; i < BRICKS_COLS; i++) {
-        let index = j * BRICKS_COLS + i;
-        let x = i * BRICK_WIDTH;
+    for (let j = 0; j < constants.BRICKS_ROWS; j++) {
+      for (let i = 0; i < constants.BRICKS_COLS; i++) {
+        let index = j * constants.BRICKS_COLS + i;
+        let x = i * constants.BRICK_WIDTH;
         let y = 0;
-        let z = j * BRICK_DEPTH;
+        let z = j * constants.BRICK_DEPTH;
 
         if (this.#bricks[index].gameObject) {
           var brickFallingAnim = new Animation("brickFalling", "position", frameRate, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
@@ -1480,16 +1437,16 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   getBrickCol(x) {
-    return Math.floor((x + BRICK_WIDTH / 2) / BRICK_WIDTH);
+    return Math.floor((x + constants.BRICK_WIDTH / 2) / constants.BRICK_WIDTH);
   }
 
   getBrickRow(z) {
-    return Math.floor((z + BRICK_DEPTH / 2) / BRICK_DEPTH);
+    return Math.floor((z + constants.BRICK_DEPTH / 2) / constants.BRICK_DEPTH);
   }
 
   getBrickAtRowCol(xpos, zpos) {
-    if (xpos >= 0 && xpos < BRICKS_COLS && zpos >= 0 && zpos < BRICKS_ROWS) {
-      let index = zpos * BRICKS_COLS + xpos;
+    if (xpos >= 0 && xpos < constants.BRICKS_COLS && zpos >= 0 && zpos < constants.BRICKS_ROWS) {
+      let index = zpos * constants.BRICKS_COLS + xpos;
       if (index >= 0 && index < this.#bricks.length)
         return this.#bricks[index];
     }
@@ -1497,8 +1454,8 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   isBrickAtRowCol(xpos, zpos) {
-    if (xpos >= 0 && xpos < BRICKS_COLS && zpos >= 0 && zpos < BRICKS_ROWS) {
-      let index = zpos * BRICKS_COLS + xpos;
+    if (xpos >= 0 && xpos < constants.BRICKS_COLS && zpos >= 0 && zpos < constants.BRICKS_ROWS) {
+      let index = zpos * constants.BRICKS_COLS + xpos;
       if (index >= 0 && index < this.#bricks.length)
         return this.#bricks[index].isAlive;
     }
@@ -1506,10 +1463,10 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   getBrickAt(x, y, z) {
-    let xpos = Math.floor((x + BRICK_WIDTH / 2) / BRICK_WIDTH);
-    let zpos = Math.floor((z + BRICK_DEPTH / 2) / BRICK_DEPTH);
-    if (xpos >= 0 && xpos < BRICKS_COLS && zpos >= 0 && zpos < BRICKS_ROWS) {
-      let index = zpos * BRICKS_COLS + xpos;
+    let xpos = Math.floor((x + constants.BRICK_WIDTH / 2) / constants.BRICK_WIDTH);
+    let zpos = Math.floor((z + constants.BRICK_DEPTH / 2) / constants.BRICK_DEPTH);
+    if (xpos >= 0 && xpos < constants.BRICKS_COLS && zpos >= 0 && zpos < constants.BRICKS_ROWS) {
+      let index = zpos * constants.BRICKS_COLS + xpos;
       if (index >= 0 && index < this.#bricks.length)
         return this.#bricks[index].isAlive;
     }
@@ -1519,9 +1476,9 @@ brickType.material.diffuseTexture.vScale = 1;*/
   touchBrickAt(x, y, z) {
     let ret = false;
 
-    let xpos = Math.floor((x + BRICK_WIDTH / 2) / BRICK_WIDTH);
-    let zpos = Math.floor((z + BRICK_DEPTH / 2) / BRICK_DEPTH);
-    let index = zpos * BRICKS_COLS + xpos;
+    let xpos = Math.floor((x + constants.BRICK_WIDTH / 2) / constants.BRICK_WIDTH);
+    let zpos = Math.floor((z + constants.BRICK_DEPTH / 2) / constants.BRICK_DEPTH);
+    let index = zpos * constants.BRICKS_COLS + xpos;
     if (index >= 0 && index < this.#bricks.length && this.#bricks[index].isAlive) {
 
       if (this.#bricks[index].touch()) {
@@ -1736,7 +1693,7 @@ class BreackOut {
     this.#inputController = new InputController(this.#engine, this.#scene, this.#canvas);
     this.#brickManager = new BrickManager(this.#scene);
 
-    this.#paddle = new Paddle(GAME_AREA_WIDTH / 2, 0, BASE_Z_PADDLE, this.#inputController, this.#scene);
+    this.#paddle = new Paddle(constants.GAME_AREA_WIDTH / 2, 0, constants.BASE_Z_PADDLE, this.#inputController, this.#scene);
     this.#bonusManager = new BonusManager(this.#scene, this.#paddle);
 
 
@@ -2163,7 +2120,7 @@ class BreackOut {
         this.#bonusManager.update();
 
         if (now > this.#timeToLaunch) {
-          this.#ballsManager.launchMainBall(BALL_LAUNCH_VX, 0, BALL_LAUNCH_VZ);
+          this.#ballsManager.launchMainBall(constants.BALL_LAUNCH_VX, 0, constants.BALL_LAUNCH_VZ);
           changeGameState(States.STATE_RUNNING);
         }
       }
@@ -2296,7 +2253,7 @@ class BreackOut {
     this.#ballsManager.reset();
     this.#bonusManager.reset();
 
-    nbLives = START_LIVES;
+    nbLives = constants.START_LIVES;
     if (currentScore > currentHighScore)
       currentHighScore = currentScore;
     currentScore = 0;
@@ -2323,19 +2280,19 @@ class BreackOut {
     wallMaterial.ambientTexture.vScale = 0.5;
 
     this.#walls = new TransformNode("walls", this.#scene);
-    var lWall = MeshBuilder.CreateBox("lWall", { width: WALLS_DEPTH, height: WALLS_HEIGHT, depth: WALLS_THICKNESS, wrap: true }, this.#scene);
+    var lWall = MeshBuilder.CreateBox("lWall", { width: constants.WALLS_DEPTH, height: constants.WALLS_HEIGHT, depth: constants.WALLS_THICKNESS, wrap: true }, this.#scene);
     lWall.rotation.y = -Math.PI / 2;
-    lWall.position.x = -BRICK_WIDTH;
-    lWall.position.z = (GAME_AREA_DEPTH + WALLS_THICKNESS * 2.5) - (WALLS_DEPTH / 2);
+    lWall.position.x = -constants.BRICK_WIDTH;
+    lWall.position.z = (constants.GAME_AREA_DEPTH + constants.WALLS_THICKNESS * 2.5) - (constants.WALLS_DEPTH / 2);
 
-    var rWall = MeshBuilder.CreateBox("rWall", { width: WALLS_DEPTH, height: WALLS_HEIGHT, depth: WALLS_THICKNESS, wrap: true }, this.#scene);
+    var rWall = MeshBuilder.CreateBox("rWall", { width: constants.WALLS_DEPTH, height: constants.WALLS_HEIGHT, depth: constants.WALLS_THICKNESS, wrap: true }, this.#scene);
     rWall.rotation.y = Math.PI / 2;
-    rWall.position.x = GAME_AREA_WIDTH;
-    rWall.position.z = (GAME_AREA_DEPTH + WALLS_THICKNESS * 2.5) - (WALLS_DEPTH / 2);
+    rWall.position.x = constants.GAME_AREA_WIDTH;
+    rWall.position.z = (constants.GAME_AREA_DEPTH + constants.WALLS_THICKNESS * 2.5) - (constants.WALLS_DEPTH / 2);
 
 
-    var tWall = MeshBuilder.CreateBox("tWall", { width: (GAME_AREA_WIDTH + BRICK_WIDTH), height: WALLS_HEIGHT, depth: WALLS_THICKNESS, wrap: true }, this.#scene);
-    tWall.position = new Vector3((GAME_AREA_WIDTH - BRICK_WIDTH) / 2, 0, GAME_AREA_DEPTH + (WALLS_THICKNESS * 2));
+    var tWall = MeshBuilder.CreateBox("tWall", { width: (constants.GAME_AREA_WIDTH + constants.BRICK_WIDTH), height: constants.WALLS_HEIGHT, depth: constants.WALLS_THICKNESS, wrap: true }, this.#scene);
+    tWall.position = new Vector3((constants.GAME_AREA_WIDTH - constants.BRICK_WIDTH) / 2, 0, constants.GAME_AREA_DEPTH + (constants.WALLS_THICKNESS * 2));
     lWall.setParent(this.#walls);
     rWall.setParent(this.#walls);
     tWall.setParent(this.#walls);
@@ -2435,7 +2392,7 @@ class BreackOut {
     this.#camera.setTarget(this.getTargetMenuPosition());
   }
   getTargetMenuPosition() {
-    let guiParent = this.#scene.getNodeByName(START_BUTTON_MESH_TARGET);
+    let guiParent = this.#scene.getNodeByName(constants.START_BUTTON_MESH_TARGET);
     return guiParent.getAbsolutePosition();
   }
 
@@ -2446,7 +2403,7 @@ class BreackOut {
 
   loadMenuGUI() {
     // GUI
-    let guiParent = this.#scene.getNodeByName(START_BUTTON_MESH_TARGET);
+    let guiParent = this.#scene.getNodeByName(constants.START_BUTTON_MESH_TARGET);
     this.#camera.setTarget(guiParent.getAbsolutePosition());
 
     var startGameButton = MeshBuilder.CreatePlane("startGameButton", { width: 10, depth: 10 });
