@@ -25,7 +25,7 @@
         "wRotationCenter": 0.5,
         "homogeneousRotationInUVTransform": false,
         "isBlocking": true,
-        "name": "dotParticle.png",
+        "name": "",
         "hasAlpha": false,
         "getAlphaFromRGB": false,
         "level": 1,
