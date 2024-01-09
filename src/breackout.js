@@ -522,11 +522,17 @@ class Ball extends Entity {
     this.applyVelocities(this.#temporarySpeedFactor * (BALL_SPEED_FACTOR + this.#currentTurbo));
 
     //Walls collisions
-    if ((this.x > WORLD_MAX_X) || (this.x < WORLD_MIN_X)) {
+    if (this.x > WORLD_MAX_X) {
+      this.x = WORLD_MAX_X;
       this.vx = -this.vx;
       //playSound(SoundsFX.BOING);
     }
+    else if (this.x < WORLD_MIN_X) {
+      this.x = WORLD_MIN_X;
+      this.vx = -this.vx;
+    }
 
+    //Future use (bouncing ball ?)
     if ((this.y > WORLD_MAX_Y) || (this.y < WORLD_MIN_Y)) {
       this.vy = -this.vy;
       //playSound(SoundsFX.BOING);
@@ -534,6 +540,7 @@ class Ball extends Entity {
 
     if ((this.z > WORLD_MAX_Z)) {
       //playSound(SoundsFX.BOING);
+      this.z = WORLD_MAX_Z;
       this.vz = -this.vz;
     }
     else if (this.z < WORLD_MIN_Z) {
