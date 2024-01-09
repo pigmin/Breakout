@@ -808,54 +808,54 @@ class BonusManager {
         probability: 5,
         callback: this.bonusGrow.bind(this)
       },
-     /* {
-        model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
-        color: new Color3(1, 1, 0),                       //JAUNE VIF
-        material: new StandardMaterial("bonusMat3"),
-        score: 10,
-        probability: 5,
-        callback: this.noBonus.bind(this)
-      },
-      {
-        model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
-        color: new Color3(1, 0.0, 0.0),                 //ROUGE
-        material: new StandardMaterial("bonusMat4"),
-        score: 10,
-        probability: 5,
-        callback: this.noBonus.bind(this)
-      },
-      {
-        model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
-        color: new Color3(1, 1, 1),                     //BLANC
-        material: new StandardMaterial("bonusMat5"),
-        score: 10,
-        probability: 5,
-        callback: this.noBonus.bind(this)
-      },
-      {
-        model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
-        color: new Color3(1, 0.6, 0),                   //ORANGE
-        material: new StandardMaterial("bonusMat6"),
-        score: 10,
-        probability: 5,
-        callback: this.noBonus.bind(this)
-      },
-      {
-        model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
-        color: new Color3(0, 1.0, 1.0),               //TURQUOISE
-        material: new StandardMaterial("bonusMat7"),
-        score: 10,
-        probability: 5,
-        callback: this.noBonus.bind(this)
-      },
-      {
-        model: MeshBuilder.CreateCapsule(`bonusModel8`, options),
-        color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
-        material: new StandardMaterial("bonusMat8"),
-        score: 10,
-        probability: 5,
-        callback: this.noBonus.bind(this)
-      }*/
+      /* {
+         model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
+         color: new Color3(1, 1, 0),                       //JAUNE VIF
+         material: new StandardMaterial("bonusMat3"),
+         score: 10,
+         probability: 5,
+         callback: this.noBonus.bind(this)
+       },
+       {
+         model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
+         color: new Color3(1, 0.0, 0.0),                 //ROUGE
+         material: new StandardMaterial("bonusMat4"),
+         score: 10,
+         probability: 5,
+         callback: this.noBonus.bind(this)
+       },
+       {
+         model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
+         color: new Color3(1, 1, 1),                     //BLANC
+         material: new StandardMaterial("bonusMat5"),
+         score: 10,
+         probability: 5,
+         callback: this.noBonus.bind(this)
+       },
+       {
+         model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
+         color: new Color3(1, 0.6, 0),                   //ORANGE
+         material: new StandardMaterial("bonusMat6"),
+         score: 10,
+         probability: 5,
+         callback: this.noBonus.bind(this)
+       },
+       {
+         model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
+         color: new Color3(0, 1.0, 1.0),               //TURQUOISE
+         material: new StandardMaterial("bonusMat7"),
+         score: 10,
+         probability: 5,
+         callback: this.noBonus.bind(this)
+       },
+       {
+         model: MeshBuilder.CreateCapsule(`bonusModel8`, options),
+         color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
+         material: new StandardMaterial("bonusMat8"),
+         score: 10,
+         probability: 5,
+         callback: this.noBonus.bind(this)
+       }*/
     ];
 
     this.#parent = new TransformNode("bonuses");
@@ -951,7 +951,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
 
     //Random for now but need to add some coeff based on levels or brick type
     let type = getRandomInt(bonusesTypeDef.length - 1);
-//    let type = getRandomInt(bonusesTypeDef.length - 1);
+    //    let type = getRandomInt(bonusesTypeDef.length - 1);
 
     let unBonus = new BonusObj(this.#iLiveBonuses, bonusesTypeDef[type], x, y, z, this.#parent, this.#paddle)
 
@@ -1038,7 +1038,8 @@ class BrickObj extends Entity {
   }
 
   setVisible(bVisible) {
-    this.gameObject.setEnabled(bVisible);
+    if (this.gameObject)
+      this.gameObject.setEnabled(bVisible);
   }
 
   /**
@@ -1075,7 +1076,7 @@ class BrickObj extends Entity {
     keys.push({
       frame: startFrame,
       value: this.gameObject.position.clone()
-    });   
+    });
     keys.push({
       frame: endFrame,
       value: new Vector3(this.gameObject.position.x + Scalar.RandomRange(-30, 30), this.gameObject.position.y + Scalar.RandomRange(100, 150), this.gameObject.position.z + Scalar.RandomRange(-120, 20))
@@ -1096,15 +1097,16 @@ class BrickObj extends Entity {
     });
     keys.push({
       frame: endFrame,
-      value: new Vector3(Math.PI/2 + Scalar.RandomRange(0, Math.PI/2), Scalar.RandomRange(Math.PI/2, Math.PI), Math.PI/2 + Scalar.RandomRange(Math.PI/4, Math.PI/2))
+      value: new Vector3(Math.PI / 2 + Scalar.RandomRange(0, Math.PI / 2), Scalar.RandomRange(Math.PI / 2, Math.PI), Math.PI / 2 + Scalar.RandomRange(Math.PI / 4, Math.PI / 2))
     });
     animationRoll.setKeys(keys);
 
-  
+
     this.#scene.beginDirectAnimation(this.gameObject, [animationUp, animationRoll], 0, endFrame, false, 1, () => {
       this.setVisible(false);
     });
     //
+
   }
 
 
@@ -1289,9 +1291,12 @@ brickType.material.diffuseTexture.vScale = 1;*/
           type = Scalar.Clamp(Math.round(type), 0, (bricksTypeDef.length - 1));
           let uneBrique = new BrickObj(index, bricksTypeDef[type], x, y, z, this.#parent, this.#scene);
 
-
+          
           this.#bricks[index] = uneBrique;
           this.#bricks[index].isAlive = true;
+          //On la cache par defaut pour l'anim
+          this.#bricks[index].setVisible(false);
+
           this.#iLiveBricks++;
         }
       }
@@ -1307,6 +1312,44 @@ brickType.material.diffuseTexture.vScale = 1;*/
               }
           }*/
   }
+
+
+  launchNewLevelAnimation(callback) {
+
+    const frameRate = 60;
+    const startFrame = 0;
+    const endFrame = 60;
+
+    let callbackFuncSet = false;
+    for (let j = 0; j < BRICKS_ROWS; j++) {
+      for (let i = 0; i < BRICKS_COLS; i++) {
+        let index = j * BRICKS_COLS + i;
+        let x = i * BRICK_WIDTH;
+        let y = 0;
+        let z = j * BRICK_DEPTH;
+
+        if (this.#bricks[index].gameObject) {
+          var brickFallingAnim = new Animation("brickFalling", "position", frameRate, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+          var motionKeys = [];
+          //modelCredits.text = "Happy Holidays"; 
+          motionKeys.push({ frame: startFrame, value: new Vector3(x+Scalar.RandomRange(-10, 10), Scalar.RandomRange(80, 200), z+Scalar.RandomRange(10, 30)) });
+          motionKeys.push({ frame: endFrame, value: new Vector3(x, y, z) });
+          brickFallingAnim.setKeys(motionKeys);
+
+          this.#bricks[index].setVisible(true);
+          if (!callbackFuncSet) {
+            this.#scene.beginDirectAnimation(this.#bricks[index].gameObject, [brickFallingAnim], startFrame, endFrame, false, 1, callback);
+            callbackFuncSet = true;
+          }
+          else
+            this.#scene.beginDirectAnimation(this.#bricks[index].gameObject, [brickFallingAnim], startFrame, endFrame, false, 1);
+        }
+      }
+    }
+
+  }
+
+
 
   update() {
     //Update anims of exploding bricks ? or use animation ?
@@ -1391,10 +1434,12 @@ const States = Object.freeze({
   STATE_START_GAME: 35,
   STATE_LAUNCH: 40,
   STATE_NEW_LEVEL: 45,
-  STATE_RUNNING: 50,
-  STATE_PAUSE: 60,
-  STATE_LOOSE: 70,
-  STATE_GAME_OVER: 80,
+  STATE_LEVEL_WELDING: 50,
+  STATE_LEVEL_READY: 55,
+  STATE_RUNNING: 60,
+  STATE_PAUSE: 70,
+  STATE_LOOSE: 80,
+  STATE_GAME_OVER: 90,
   STATE_END: 100,
 });
 
@@ -1588,7 +1633,7 @@ class BreackOut {
     changeGameState(States.STATE_PRE_INTRO);
     this.launchCreditsAnimation(() => {
       this.#creditsUI.rootContainer.isVisible = false;
-     });
+    });
     this.launchPreIntroAnimation(() => {
       changeGameState(States.STATE_MENU);
     });
@@ -1865,6 +1910,10 @@ class BreackOut {
 
   }
 
+  launchNewLevelAnimation(callback) {
+    this.#brickManager.launchNewLevelAnimation(callback);
+  }
+
   loadAssets() {
     return new Promise((resolve) => {
 
@@ -1896,7 +1945,7 @@ class BreackOut {
         this.#shadowGenerator
       );
 
-      
+
       this.LoadEntity(
         "monitor",
         "",
@@ -1905,7 +1954,7 @@ class BreackOut {
         this.#assetsManager,
         this.#myMeshes,
         1,
-        { position: new Vector3(130, -20.95, 30), scaling: new Vector3(-35, 35, 35), rotation: new Vector3(0, Math.PI+0.2, 0) },
+        { position: new Vector3(130, -20.95, 30), scaling: new Vector3(-35, 35, 35), rotation: new Vector3(0, Math.PI + 0.2, 0) },
         this.#scene,
         this.#shadowGenerator,
         (mesh) => {
@@ -1913,7 +1962,7 @@ class BreackOut {
           screenMat.emissiveTexture = null;
           screenMat.albedoColor = new Color3(1, 1, 1);
           screenMat.emissiveColor = new Color3(0, 0, 0);
-          screenMat.albedoTexture = new VideoTexture("vidtex",screenVideoTextureUrl, this.#scene);
+          screenMat.albedoTexture = new VideoTexture("vidtex", screenVideoTextureUrl, this.#scene);
         }
       );
 
@@ -2004,6 +2053,23 @@ class BreackOut {
         }
       }
       else if (gameState == States.STATE_NEW_LEVEL) {
+        //Random music
+        /*        let musicId = getRandomInt(this.#musics.length-1);
+                this.#musics[musicId].play()*/
+
+        this.#ball.reset();
+        this.#bonusManager.reset();
+
+        //Animation level
+        changeGameState(States.STATE_LEVEL_WELDING);
+        this.launchNewLevelAnimation(() => {
+          changeGameState(States.STATE_LEVEL_READY);
+        });
+      }
+      else if (gameState == States.STATE_LEVEL_WELDING) {
+        //RAS
+      }      
+      else if (gameState == States.STATE_LEVEL_READY) {
         //Random music
         /*        let musicId = getRandomInt(this.#musics.length-1);
                 this.#musics[musicId].play()*/
@@ -2191,7 +2257,7 @@ class BreackOut {
     entity_number,
     props,
     scene,
-    shadowGenerator, 
+    shadowGenerator,
     callback
   ) {
     const meshTask = manager.addMeshTask(name, meshNameToLoad, url, file);
@@ -2221,12 +2287,12 @@ class BreackOut {
           meshArray[entity_number].rotation.copyFrom(props.rotation);
         }
         else
-          meshArray[entity_number].rotation = Vector3.Zero();  
+          meshArray[entity_number].rotation = Vector3.Zero();
 
       }
       else {
         meshArray[entity_number].position = Vector3.Zero();
-        meshArray[entity_number].rotation = Vector3.Zero();  
+        meshArray[entity_number].rotation = Vector3.Zero();
       }
 
       if (shadowGenerator)
