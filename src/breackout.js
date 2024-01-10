@@ -1394,7 +1394,7 @@ class BonusManager {
   randomLaunch(x, y, z) {
 
     //25 %
-    if (getRandomInt(100) < 125) {
+    if (getRandomInt(100) < 25) {
       this.launch(x, y, z);
     }
 

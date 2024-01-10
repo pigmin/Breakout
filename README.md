@@ -8,5 +8,5 @@ Awaking my Javascript knowledge to ES6 and TypeScript (not for this one)
   * Keep things simple
   * Have fun
 
-Like usual when discovering game libraries like Babylon JS (it's not limited to games) nothing is like coding classics : Breackout, Pong, PacMan and so on.
+Like usual when discovering game libraries like Babylon JS (it's not limited to games) nothing is like coding classics : Breakout, Pong, PacMan and so on.
 
