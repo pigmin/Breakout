@@ -505,7 +505,7 @@ class Paddle extends Entity {
 
     //Cancel growing
     if (this.#temporaryGrowEndTime > 0 && this.#temporaryGrowEndTime < performance.now())
-      this.grow(false);
+      this.bonusGrow(false);
 
     //Cancel fire power
     if (this.#temporaryFirePowerEndTime > 0 && this.#temporaryFirePowerEndTime < performance.now())
@@ -531,28 +531,39 @@ class Paddle extends Entity {
     return this.x + (constants.PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
   }
 
+  
   bonusFireBullets(bActive) {
     //@todo : cancel other paddle bonus ? glue and grow only
-
+    this.bonusGlue(false);
+    this.bonusGrow(false);
 
     if (bActive) {
+      if (!this.#bFirePower)
+        this.bonusFireAnimation(false);
       this.#temporaryFirePowerEndTime = performance.now() + 20000;
       this.#bFirePower = true;
       //@todo : Morph paddle 
     }
     else {
+      if (this.#bFirePower)
+        this.bonusFireAnimation(true);
+
       this.#temporaryFirePowerEndTime = 0;
       this.#bFirePower = false;
       //@todo : Morph paddle 
     }
   }
-  glue(bActive) {
+  bonusGlue(bActive) {
     //@todo : cancel other paddle bonus ? fire and grow only
+    this.bonusFireBullets(false);
+    this.bonusGrow(false);
   
   }
 
-  grow(bActive) {
+  bonusGrow(bActive) {
     //@todo : cancel other paddle bonus ? fire and glue only
+    this.bonusFireBullets(false);
+    this.bonusGlue(false);
 
     if (bActive) {
       //animate to grow
@@ -580,7 +591,7 @@ class Paddle extends Entity {
     //@todo : glue 
 
     //Grow cancel
-    this.grow(false);
+    this.bonusGrow(false);
 
     //fire cancel
     this.bFirePower
@@ -618,6 +629,10 @@ class Paddle extends Entity {
       this.#scene.beginAnimation(this.gameObject, endFrame, startFrame, false, 1);
     else
       this.#scene.beginAnimation(this.gameObject, startFrame, endFrame, false, 1);
+  }
+
+  bonusFireAnimation(bReverse) {
+    //@todo : Animate or morph
   }
 
 }
@@ -1307,7 +1322,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
   randomLaunch(x, y, z) {
 
     //25 %
-    if (getRandomInt(100) < 95) {
+    if (getRandomInt(100) < 33) {
       this.launch(x, y, z);
     }
 
