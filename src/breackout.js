@@ -349,12 +349,6 @@ class BulletsManager {
     }
     this.#bullets = filteredArray;
   }
-  checkInput() {
-   
-    if (this.#inputController.inputMap["Space"]) {
-      this.launch();
-    }
-  }
 
   reset() {
     for (let bullet of this.#bullets) {
@@ -369,9 +363,14 @@ class BulletsManager {
 class Paddle extends Entity {
 
   #inputController;
+  #bulletsManager;
   #scene;
   #temporaryGrowFactor;
   #temporaryGrowEndTime;
+
+  #temporaryFirePowerEndTime;
+  #bFirePower;
+
 
   #paddleMinX = (constants.WORLD_MIN_X + constants.PADDLE_WIDTH / 2) - constants.BALL_RADIUS;
   #paddleMaxX = (constants.WORLD_MAX_X - constants.PADDLE_WIDTH / 2) + constants.BALL_RADIUS;
@@ -424,8 +423,14 @@ class Paddle extends Entity {
     this.#temporaryGrowFactor = 1.0;
     this.#temporaryGrowEndTime = 0;
 
+    this.#temporaryFirePowerEndTime = 0;
+    this.#bFirePower = false;
 
     this.updatePosition();
+  }
+
+  setBulletsManager(bulletsManager) {
+    this.#bulletsManager = bulletsManager;
   }
 
   createParticles(react, name, direction) {
@@ -468,6 +473,8 @@ class Paddle extends Entity {
     particleSystem.start();
   }
 
+
+
   checkInput() {
 
 
@@ -487,13 +494,23 @@ class Paddle extends Entity {
       if (this.vx > constants.MAX_VELOCITY)
         this.vx = constants.MAX_VELOCITY;
     }
+
+    if (this.#bFirePower && this.#inputController.inputMap["Space"]) {
+      this.#bulletsManager.launch();
+    }
+
   }
 
   update() {
 
+    //Cancel growing
     if (this.#temporaryGrowEndTime > 0 && this.#temporaryGrowEndTime < performance.now())
       this.grow(false);
 
+    //Cancel fire power
+    if (this.#temporaryFirePowerEndTime > 0 && this.#temporaryFirePowerEndTime < performance.now())
+      this.bonusFireBullets(false);
+  
     this.applyVelocities();
 
     //Walls collisions
@@ -514,9 +531,30 @@ class Paddle extends Entity {
     return this.x + (constants.PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
   }
 
-  grow(bGrowing) {
+  bonusFireBullets(bActive) {
+    //@todo : cancel other paddle bonus ? glue and grow only
 
-    if (bGrowing) {
+
+    if (bActive) {
+      this.#temporaryFirePowerEndTime = performance.now() + 20000;
+      this.#bFirePower = true;
+      //@todo : Morph paddle 
+    }
+    else {
+      this.#temporaryFirePowerEndTime = 0;
+      this.#bFirePower = false;
+      //@todo : Morph paddle 
+    }
+  }
+  glue(bActive) {
+    //@todo : cancel other paddle bonus ? fire and grow only
+  
+  }
+
+  grow(bActive) {
+    //@todo : cancel other paddle bonus ? fire and glue only
+
+    if (bActive) {
       //animate to grow
       this.#temporaryGrowFactor = 1.5;
 
@@ -526,9 +564,11 @@ class Paddle extends Entity {
       this.#temporaryGrowEndTime = performance.now() + 20000;
     }
     else {
-      this.#temporaryGrowEndTime = 0;
-      this.#temporaryGrowFactor = 1.0;
-      this.growAnimation(true);
+      if (this.#temporaryGrowFactor > 1) {
+        this.#temporaryGrowEndTime = 0;
+        this.#temporaryGrowFactor = 1.0;
+        this.growAnimation(true);
+      }
     }
     // this.gameObject.scaling.x = this.#temporaryGrowFactor;
     //On recalcule les min/max
@@ -537,8 +577,13 @@ class Paddle extends Entity {
   }
 
   reset() {
-    //glue 
+    //@todo : glue 
+
+    //Grow cancel
     this.grow(false);
+
+    //fire cancel
+    this.bFirePower
   }
 
 
@@ -1129,15 +1174,15 @@ class BonusManager {
         probability: 5,
         callback: this.bonusMultiBalls.bind(this)
       },
-      /*  {
+      {
           model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
           color: new Color3(1, 0.0, 0.0),                 //ROUGE
           material: new StandardMaterial("bonusMat4"),
           score: 10,
           probability: 5,
-          callback: this.noBonus.bind(this)
+          callback: this.bonusFireBullets.bind(this)
         },
-        {
+      /*  {
           model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
           color: new Color3(1, 1, 1),                     //BLANC
           material: new StandardMaterial("bonusMat5"),
@@ -1229,6 +1274,10 @@ brickType.material.diffuseTexture.vScale = 1;*/
   bonusMultiBalls() {
     this.#ballsManager.bonusMultiBalls();
   }
+  
+  bonusFireBullets() {
+    this.#paddle.bonusFireBullets(true);
+  }
 
   init() {
 
@@ -1258,7 +1307,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
   randomLaunch(x, y, z) {
 
     //25 %
-    if (getRandomInt(100) < 25) {
+    if (getRandomInt(100) < 95) {
       this.launch(x, y, z);
     }
 
@@ -1951,6 +2000,7 @@ class BreackOut {
 
     //Ok it*s ugly but it's only a game not a nuclear plant !
     this.#bonusManager.setBallsManager(this.#ballsManager);
+    this.#paddle.setBulletsManager(this.#bulletsManager);
 
     changeGameState(States.STATE_PRE_INTRO);
     this.launchCreditsAnimation(() => {
@@ -2367,7 +2417,6 @@ class BreackOut {
         this.#paddle.checkInput();
         this.#paddle.update();
 
-        this.#bulletsManager.checkInput();
         this.#bulletsManager.update();
 
         this.#ballsManager.positionBallAtPaddle();
@@ -2438,7 +2487,6 @@ class BreackOut {
         this.#paddle.checkInput();
         this.#paddle.update();
 
-        this.#bulletsManager.checkInput();
         this.#bulletsManager.update();
 
         //Update ball
