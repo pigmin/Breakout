@@ -788,9 +788,19 @@ class Ball extends Entity {
   }
 
   checkBoundings() {
-    if (this.z < constants.WORLD_MIN_Z) {
+    if (isNaN(this.x ) || isNaN(this.z))
+    {
       this.isAlive = false;
       playSound(SoundsFX.LOOSE);
+      console.log("Doh !");
+      debugger;
+    }
+    else {
+
+      if (this.z < constants.WORLD_MIN_Z) {
+        this.isAlive = false;
+        playSound(SoundsFX.LOOSE);
+      }
     }
     //Check if ball is (bug) far away of game area ?
     //if (this.x < )
@@ -834,7 +844,7 @@ class Ball extends Entity {
 
     }
 
-    if ((this.z > constants.WORLD_MAX_Z)) {
+    if (this.z > constants.WORLD_MAX_Z) {
       //playSound(SoundsFX.BOING);
       let delta = this.z - constants.WORLD_MAX_Z;
       this.z = constants.WORLD_MAX_Z - delta;
@@ -999,13 +1009,20 @@ class BallsManager {
       let ball = this.#balls[i];
 
       if (!ball.isAlive) {
-        ball.x = activeBall.x;
-        ball.y = activeBall.y;
-        ball.z = activeBall.z;
+        if (activeBall) {
+          ball.x = activeBall.x;
+          ball.y = activeBall.y;
+          ball.z = activeBall.z;
+        }
+        else {
+          ball.x = this.#paddle.x;
+          ball.y = 0;
+          ball.z = constants.BASE_Z_BALL;
+        }
         if (bPair)
-          ball.launch(-constants.BALL_LAUNCH_VX, 0, constants.BALL_LAUNCH_VZ);
+          ball.launch(-constants.BALL_LAUNCH_VX*Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
         else
-          ball.launch(constants.BALL_LAUNCH_VX, 0, constants.BALL_LAUNCH_VZ);
+          ball.launch(constants.BALL_LAUNCH_VX*Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
 
         bPair = !bPair;
       }
@@ -2461,7 +2478,7 @@ class BreackOut {
         this.#bonusManager.update();
 
         if (now > this.#timeToLaunch) {
-          this.#ballsManager.launchBall(constants.BALL_LAUNCH_VX, 0, constants.BALL_LAUNCH_VZ);
+          this.#ballsManager.launchBall(constants.BALL_LAUNCH_VX*Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
           changeGameState(States.STATE_RUNNING);
         }
       }
