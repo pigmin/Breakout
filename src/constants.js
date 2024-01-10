@@ -31,6 +31,7 @@ export const PADDLE_WIDTH = (30 / 3.0);
 export const PADDLE_RADIUS = ((5 / 2) / 3.0);
 export const BASE_Z_PADDLE = BASE_Z_BALL - PADDLE_RADIUS * 2;
 export const OFF_AREA = BASE_Z_PADDLE - PADDLE_RADIUS * 32;
+export const FIRE_HEADS_OFFSET = 1.5;
 
 export const WORLD_MIN_X = -BRICK_WIDTH + (WALLS_THICKNESS / 2) + BALL_RADIUS;
 export const WORLD_MAX_X = (GAME_AREA_WIDTH) - (WALLS_THICKNESS / 2) - BALL_RADIUS;

@@ -318,11 +318,11 @@ class BulletsManager {
       let now = performance.now();
       if ((now - this.#lastFireTime) > constants.DELAY_BETWEEN_FIRES) {
 
-        let bullet1 = new FireBullet(this.#paddle.x - (constants.PADDLE_WIDTH / 2), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
+        let bullet1 = new FireBullet(this.#paddle.x - (constants.PADDLE_WIDTH / 3), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
         bullet1.launch(0, 0, constants.BULLET_LAUNCH_VX);
         this.#bullets.push(bullet1);
 
-        let bullet2 = new FireBullet(this.#paddle.x + (constants.PADDLE_WIDTH / 2), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
+        let bullet2 = new FireBullet(this.#paddle.x + (constants.PADDLE_WIDTH / 3), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
         bullet2.launch(0, 0, constants.BULLET_LAUNCH_VX);
         this.#bullets.push(bullet2);
 
@@ -375,6 +375,8 @@ class Paddle extends Entity {
 
   #temporaryFirePowerEndTime;
   #bFirePower;
+  #lGun;
+  #rGun;
 
 
   #paddleMinX = (constants.WORLD_MIN_X + constants.PADDLE_WIDTH / 2) - constants.BALL_RADIUS;
@@ -409,6 +411,21 @@ class Paddle extends Entity {
     rReact.material = trailMaterial;
     rReact.setParent(this.gameObject);
 
+    this.#lGun = new MeshBuilder.CreateCylinder("lGun", { height: constants.PADDLE_RADIUS + 1, diameter: constants.PADDLE_RADIUS });
+    this.#lGun.position.x = -constants.PADDLE_WIDTH / 3;
+    this.#lGun.position.z = 0;
+    this.#lGun.rotation.x = -Math.PI / 2;
+    this.#lGun.material = trailMaterial;
+    this.#lGun.setParent(this.gameObject);
+    this.#lGun.visibility = 0;
+
+    this.#rGun = new MeshBuilder.CreateCylinder("rGun", { height: constants.PADDLE_RADIUS + 1, diameter: constants.PADDLE_RADIUS });
+    this.#rGun.position.x = constants.PADDLE_WIDTH / 3;
+    this.#rGun.position.z = 0;
+    this.#rGun.rotation.x = -Math.PI / 2;
+    this.#rGun.material = trailMaterial;
+    this.#rGun.setParent(this.gameObject);
+    this.#rGun.visibility = 0;
 
     var paddleMaterial = new StandardMaterial("paddleMaterial");
     var paddleTexture = new Texture(paddleBaseColorUrl);
@@ -644,6 +661,25 @@ class Paddle extends Entity {
 
   bonusFireAnimation(bReverse) {
     //@todo : Animate or morph
+    if (!bReverse) {
+      this.gameObject.material.diffuseColor = new Color3(1, 0.5, 0.5);
+      this.gameObject.material.emissiveColor = new Color3(0.95, 0.345, 0.354);
+      Animation.CreateAndStartAnimation("lGun", this.#lGun, "position.z", 60, 30, 0, constants.FIRE_HEADS_OFFSET, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      Animation.CreateAndStartAnimation("lGun", this.#lGun, "visibility", 60, 30, 0, 1, Animation.ANIMATIONLOOPMODE_CONSTANT);
+
+      Animation.CreateAndStartAnimation("rGun", this.#rGun, "position.z", 60, 30, 0, constants.FIRE_HEADS_OFFSET, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      Animation.CreateAndStartAnimation("rGun", this.#rGun, "visibility", 60, 30, 0, 1, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    }
+    else {
+      this.gameObject.material.diffuseColor = new Color3(1, 1, 1.0);
+      this.gameObject.material.emissiveColor = new Color3(0.345, 0.345, 0.354);      
+
+      Animation.CreateAndStartAnimation("lGun", this.#lGun, "position.z", 60, 30, constants.FIRE_HEADS_OFFSET, 0, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      Animation.CreateAndStartAnimation("lGun", this.#lGun, "visibility", 60, 30, 1, 0, Animation.ANIMATIONLOOPMODE_CONSTANT);
+
+      Animation.CreateAndStartAnimation("rGun", this.#rGun, "position.z", 60, 30, constants.FIRE_HEADS_OFFSET, 0, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      Animation.CreateAndStartAnimation("rGun", this.#rGun, "visibility", 60, 30, 1, 0, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    }
   }
 
 }
@@ -1358,7 +1394,7 @@ class BonusManager {
   randomLaunch(x, y, z) {
 
     //25 %
-    if (getRandomInt(100) < 25) {
+    if (getRandomInt(100) < 125) {
       this.launch(x, y, z);
     }
 
