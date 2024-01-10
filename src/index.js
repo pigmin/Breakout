@@ -4,7 +4,7 @@ import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
 import "@babylonjs/core/Engines/WebGPU/Extensions/engine.uniformBuffer";
 
 import BreackOut from "./breackout";
-
+/*
 // Get the canvas element from the DOM.
 const canvas = document.getElementById("renderCanvas");
 
@@ -19,8 +19,8 @@ window.addEventListener("resize", function () {
 const game = window.game = new BreackOut(canvas, engine);
 game.start();
 
-
-/* VERSION AVEC GPU ET ASYNC
+*/
+// VERSION AVEC GPU ET ASYNC
 let canvas;
 let engine;
 
@@ -35,15 +35,23 @@ export const babylonInit = async () => {
         if (webGPUSupported) {
             const webgpu = (engine = new WebGPUEngine(canvas, {
                 adaptToDeviceRatio: true,
-                antialias: true,
+                antialias: true
             }));
             await webgpu.initAsync();
             engine = webgpu;
         } else {
-            engine = new Engine(canvas, true);
+            engine = new Engine(canvas, false, {
+                adaptToDeviceRatio: true,
+            });
+            //Stencil is for hightlayer, unused in this projet 
+            //engine = new Engine(canvas, false, { stencil: true });
         }
     } else {
-        engine = new Engine(canvas, true);
+        engine = new Engine(canvas, false, {
+            adaptToDeviceRatio: true,
+        });
+        //Stencil is for hightlayer, unused in this projet 
+        //engine = new Engine(canvas, false, {stencil: true});
     }
 
 
@@ -58,9 +66,9 @@ babylonInit().then(() => {
     // scene started rendering, everything is initialized
     // Register a render loop to repeatedly render the scene
     // Create the scene
-    const game = new BreackOut(canvas, engine);
+    const game = window.game = new BreackOut(canvas, engine);
+    game.start();
 
-    game.start();    
 });
-*/
+
 

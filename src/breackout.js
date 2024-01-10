@@ -4,7 +4,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, GamepadManager, VideoTexture, NoiseProceduralTexture } from "@babylonjs/core";
+import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ArcRotateCamera, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, GamepadManager, VideoTexture } from "@babylonjs/core";
 
 
 
@@ -37,7 +37,7 @@ import groundNormalUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_
 import particleExplosionUrl from "../assets/particles/systems/explosionParticleSystem.json"
 import particleExplosionTextureUrl from "../assets/particles/textures/dotParticle.png"
 
-import particleBoingUrl  from "../assets/particles/systems/boingParticleSystem.json"
+import particleBoingUrl from "../assets/particles/systems/boingParticleSystem.json"
 
 import screenVideoTextureUrl from "../assets/textures/Future Crew - Second Reality (360p no SOUND).mp4";
 
@@ -155,6 +155,136 @@ class Entity {
     this.y = this.y + (this.vy * factor);
     this.z = this.z + (this.vz * factor);
 
+  }
+
+}
+
+class Ennemy extends Entity {
+
+  #paddle;
+  isAlive;
+
+  constructor(x, y, z, paddle) {
+    super(x, y, z);
+
+    this.#paddle = paddle;
+    this.isAlive = false;
+
+    this.gameObject = this.createPyramid();
+    this.gameObject.receiveShadows = false;
+    shadowGenerator.addShadowCaster(this.gameObject);
+
+    this.updatePosition();
+  }
+
+  createPyramid(scene) {
+
+    const shape = MeshBuilder.CreatePolyhedron("shape", { type: 0, size: 2 });
+    shape.enableEdgesRendering();
+    shape.edgesWidth = 16.0;
+    shape.edgesColor = new Color4(0, 1, 0, 1);
+
+    var edgeMat = new StandardMaterial("ennemyPyramid");
+    edgeMat.alpha = 0;
+    shape.material = edgeMat;
+    shape.position.y = 1.2;
+
+    let sphere = MeshBuilder.CreateSphere("node", { radius: 1 })
+    let matS = new StandardMaterial("node");
+    matS.diffuseColor = new Color3(1, 0, 0);
+    matS.emissiveColor = new Color3(1, 0, 0);
+    sphere.material = matS;
+    sphere.parent = shape;
+
+
+    return shape;
+
+  }
+
+  launch(vx, vy, vz) {
+
+    this.vx = vx;
+    this.vy = vy;
+    this.vz = vz;
+
+    this.isAlive = true;
+  }
+
+  update() {
+    this.gameObject.rotation.x += 0.01;
+    this.gameObject.rotation.z += 0.01;
+
+    if (this.isAlive) {
+
+      
+      this.applyVelocities();
+
+      if (this.x > constants.WORLD_MAX_X) {
+        let delta = this.x - constants.WORLD_MAX_X;
+        this.x = constants.WORLD_MAX_X - delta;
+        this.vx = -this.vx;
+      }
+      else if (this.x < constants.WORLD_MIN_X) {
+        let delta = constants.WORLD_MIN_X - this.x;
+        this.x = constants.WORLD_MIN_X + delta;
+        this.vx = -this.vx;
+      }
+
+      if (this.z > constants.WORLD_MAX_Z) {
+        //playSound(SoundsFX.BOING);
+        let delta = this.z - constants.WORLD_MAX_Z;
+        this.z = constants.WORLD_MAX_Z - delta;
+        this.vz = -this.vz;
+      } else if (this.z < constants.WORLD_MIN_Z) {
+        //playSound(SoundsFX.BOING);
+        let delta = constants.WORLD_MIN_Z - this.z;
+        this.z = constants.WORLD_MIN_Z - delta;
+        this.vz = -this.vz;
+      } 
+    }
+
+    this.updatePosition();
+
+  }
+}
+
+class EnnemiesManager {
+
+  #paddle;
+  #ennemies = [];
+
+  #nextLaunchTime = 0;
+
+  constructor(paddle) {
+
+    this.#paddle = paddle;
+
+  }
+
+  reset() {
+
+  }
+
+  launch(type) {
+    let ennemy = new Ennemy(0, 2, 0);
+    ennemy.launch(Scalar.RandomRange(0.1, 0.2), 0, Scalar.RandomRange(0.1, 0.2));
+    this.#ennemies.push(ennemy);
+
+  }
+
+  update() {
+    let now = performance.now();
+    
+    if (getRandomInt(100) < 30) {
+      if ((now >= this.#nextLaunchTime) || this.#nextLaunchTime == 0) {
+        this.launch(0);
+        this.#nextLaunchTime = now + 10000;
+      }
+    }
+
+    for (let ennemy of this.#ennemies) {
+      ennemy.update();
+    }
   }
 
 }
@@ -672,7 +802,7 @@ class Paddle extends Entity {
     }
     else {
       this.gameObject.material.diffuseColor = new Color3(1, 1, 1.0);
-      this.gameObject.material.emissiveColor = new Color3(0.345, 0.345, 0.354);      
+      this.gameObject.material.emissiveColor = new Color3(0.345, 0.345, 0.354);
 
       Animation.CreateAndStartAnimation("lGun", this.#lGun, "position.z", 60, 30, constants.FIRE_HEADS_OFFSET, 0, Animation.ANIMATIONLOOPMODE_CONSTANT);
       Animation.CreateAndStartAnimation("lGun", this.#lGun, "visibility", 60, 30, 1, 0, Animation.ANIMATIONLOOPMODE_CONSTANT);
@@ -824,12 +954,11 @@ class Ball extends Entity {
   }
 
   checkBoundings() {
-    if (isNaN(this.x ) || isNaN(this.z))
-    {
+    if (isNaN(this.x) || isNaN(this.z)) {
       this.isAlive = false;
       playSound(SoundsFX.LOOSE);
       console.log("Doh !");
-      debugger;
+      //debugger;
     }
     else {
 
@@ -857,7 +986,7 @@ class Ball extends Entity {
       let delta = this.x - constants.WORLD_MAX_X;
       this.x = constants.WORLD_MAX_X - delta;
       this.vx = -this.vx;
-      
+
       let boingParticleSystemClone = boingParticleSystem.clone(`exp`);
       boingParticleSystemClone.worldOffset = new Vector3(this.x, this.y, this.z);
       boingParticleSystemClone.start();
@@ -1056,9 +1185,9 @@ class BallsManager {
           ball.z = constants.BASE_Z_BALL;
         }
         if (bPair)
-          ball.launch(-constants.BALL_LAUNCH_VX*Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
+          ball.launch(-constants.BALL_LAUNCH_VX * Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
         else
-          ball.launch(constants.BALL_LAUNCH_VX*Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
+          ball.launch(constants.BALL_LAUNCH_VX * Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
 
         bPair = !bPair;
       }
@@ -1721,7 +1850,7 @@ class BrickManager {
       for (let i = 0; i < constants.BRICKS_COLS; i++) {
         let index = j * constants.BRICKS_COLS + i;
         let x = i * constants.BRICK_WIDTH;
-        let y = constants.BRICK_HEIGHT/2;
+        let y = constants.BRICK_HEIGHT / 2;
         let z = j * constants.BRICK_DEPTH;
         let car = currentLevelMatrix[(constants.BRICKS_ROWS - 1) - j].charAt(i);
         if (car === " ") {
@@ -1903,7 +2032,6 @@ class BreackOut {
   #camera;
   #light;
   #shadowGenerator;
-  #hightLightLayer;
   #musics = [];
   #bPause;
 
@@ -1917,6 +2045,7 @@ class BreackOut {
   #ballsManager;
   #bonusManager;
   #bulletsManager;
+  #ennemiesManager;
   #inputController;
   #bInspector = false;
 
@@ -1953,22 +2082,11 @@ class BreackOut {
     await this.loadAssets();
 
     // Add the highlight layer.
-    this.#hightLightLayer = new HighlightLayer("hightLightLayer", this.#scene);
+    //this.#hightLightLayer = new HighlightLayer("hightLightLayer", this.#scene);
     //this.#hightLightLayer.innerGlow = false;
 
-    // This creates and positions a free camera (non-mesh)
-    /*this.#camera = new UniversalCamera(
-      "camera1",
-      new Vector3((bricksCols * brickWidth) / 2, 60, -65),
-      this.#scene
-    );*/
     this.#camera = new ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 3, 10, this.#cameraMenuPosition, this.#scene);
-    /*  this.#camera  = new FlyCamera(
-        "FlyCamera",
-        new Vector3(0, 5, -50),
-        this.#scene
-      );
-  */
+
     // This targets the camera to scene origin
     this.gotoMenuCamera();
     // This attaches the camera to the canvas
@@ -2075,6 +2193,8 @@ class BreackOut {
     this.#ballsManager = new BallsManager(this.#paddle, this.#brickManager, this.#bonusManager);
 
     this.#bulletsManager = new BulletsManager(this.#paddle, this.#brickManager, this.#bonusManager, this.#inputController);
+
+    this.#ennemiesManager = new EnnemiesManager(this.#paddle);
 
     //Ok it*s ugly but it's only a game not a nuclear plant !
     this.#bonusManager.setBallsManager(this.#ballsManager);
@@ -2394,7 +2514,10 @@ class BreackOut {
         0,
         { position: new Vector3(124, -224.68, -92.87), scaling: new Vector3(-200, 200, 200) },
         this.#scene,
-        this.#shadowGenerator
+        this.#shadowGenerator,
+        (mesh) => {
+          mesh.freezeWorldMatrix();
+        }
       );
 
 
@@ -2415,6 +2538,7 @@ class BreackOut {
           screenMat.albedoColor = new Color3(1, 1, 1);
           screenMat.emissiveColor = new Color3(0, 0, 0);
           screenMat.albedoTexture = new VideoTexture("vidtex", screenVideoTextureUrl, this.#scene);
+          mesh.freezeWorldMatrix();
         }
       );
 
@@ -2509,13 +2633,17 @@ class BreackOut {
         this.#ballsManager.positionBallAtPaddle();
         //Not a real update
         this.#ballsManager.update(false);
+        
+        //Ennemies
+        this.#ennemiesManager.update();
 
         //Update bonuses
         this.#bonusManager.update();
 
         if (now > this.#timeToLaunch) {
-          this.#ballsManager.launchBall(constants.BALL_LAUNCH_VX*Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
+          this.#ballsManager.launchBall(constants.BALL_LAUNCH_VX * Scalar.RandomRange(0.8, 1.2), 0, constants.BALL_LAUNCH_VZ);
           changeGameState(States.STATE_RUNNING);
+
         }
       }
       else if (gameState == States.STATE_NEW_LEVEL) {
@@ -2570,6 +2698,7 @@ class BreackOut {
       }
       else if (gameState == States.STATE_RUNNING) {
 
+
         //Update paddle
         this.#paddle.checkInput();
         this.#paddle.update();
@@ -2578,6 +2707,10 @@ class BreackOut {
 
         //Update ball
         this.#ballsManager.update(true);
+
+        //Ennemies
+        this.#ennemiesManager.update();        
+
 
         //Update bricks
         this.#brickManager.update();
@@ -2630,8 +2763,8 @@ class BreackOut {
 
         }
         else {
-          Inspector.Hide();
           this.#camera.detachControl();
+          Inspector.Hide();
         }
       }
 
