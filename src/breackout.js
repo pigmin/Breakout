@@ -34,8 +34,10 @@ import paddleNormalUrl from "../assets/textures/Metal_Plate_017_normal.jpg";
 import groundBaseColorUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_basecolor.jpg";
 import groundNormalUrl from "../assets/textures/Metal_Plate_Sci-Fi_001_SD/Metal_Plate_Sci-Fi_001_normal.jpg";
 
-import particleExplosionUrl from "../assets/particles/systems/particleSystem.json"
+import particleExplosionUrl from "../assets/particles/systems/explosionParticleSystem.json"
 import particleExplosionTextureUrl from "../assets/particles/textures/dotParticle.png"
+
+import particleBoingUrl  from "../assets/particles/systems/boingParticleSystem.json"
 
 import screenVideoTextureUrl from "../assets/textures/Future Crew - Second Reality (360p no SOUND).mp4";
 
@@ -70,6 +72,7 @@ import * as constants from "./constants";
 //const StartButtonMeshTarget = "panel_plate.001_140";
 
 let explosionParticleSystem;
+let boingParticleSystem;
 let shadowGenerator;
 
 
@@ -658,6 +661,7 @@ class Ball extends Entity {
   #temporarySpeedFactor;
   #temporarySlowEndTime;
 
+
   constructor(x, y, z, brickManager, paddle, bonusManager, bHide) {
     super(x, y, z);
     this.#brickManager = brickManager;
@@ -698,6 +702,8 @@ class Ball extends Entity {
     trailMaterial.diffuseColor = color;
     trailMaterial.specularColor = new Color3(1, 1, 1);
     this.#trail.material = trailMaterial;
+
+
 
     if (bHide)
       this.setVisible(false);
@@ -805,18 +811,27 @@ class Ball extends Entity {
       let delta = this.x - constants.WORLD_MAX_X;
       this.x = constants.WORLD_MAX_X - delta;
       this.vx = -this.vx;
+      
+      let boingParticleSystemClone = boingParticleSystem.clone(`exp`);
+      boingParticleSystemClone.worldOffset = new Vector3(this.x, this.y, this.z);
+      boingParticleSystemClone.start();
       //playSound(SoundsFX.BOING);
     }
     else if (this.x < constants.WORLD_MIN_X) {
       let delta = constants.WORLD_MIN_X - this.x;
       this.x = constants.WORLD_MIN_X + delta;
       this.vx = -this.vx;
+
+      let boingParticleSystemClone = boingParticleSystem.clone(`exp`);
+      boingParticleSystemClone.worldOffset = new Vector3(this.x, this.y, this.z);
+      boingParticleSystemClone.start();
     }
 
     //Future use (bouncing ball ?)
     if ((this.y > constants.WORLD_MAX_Y) || (this.y < constants.WORLD_MIN_Y)) {
       this.vy = -this.vy;
       //playSound(SoundsFX.BOING);
+
     }
 
     if ((this.z > constants.WORLD_MAX_Z)) {
@@ -824,6 +839,10 @@ class Ball extends Entity {
       let delta = this.z - constants.WORLD_MAX_Z;
       this.z = constants.WORLD_MAX_Z - delta;
       this.vz = -this.vz;
+
+      let boingParticleSystemClone = boingParticleSystem.clone(`exp`);
+      boingParticleSystemClone.worldOffset = new Vector3(this.x, this.y, this.z);
+      boingParticleSystemClone.start();
     }
 
   }
@@ -2299,6 +2318,7 @@ class BreackOut {
       this.#assetsManager = new AssetsManager(this.#scene);
       const particleTexture = this.#assetsManager.addTextureTask("explosion texture", particleExplosionTextureUrl)
       const particleExplosion = this.#assetsManager.addTextFileTask("explosion", particleExplosionUrl);
+      const particleBoing = this.#assetsManager.addTextFileTask("boing", particleBoingUrl);
       //      const boingSoundData = this.#assetsManager.addBinaryFileTask("boingSound", boingSoundUrl);
       const brickTouchedSoundData1 = this.#assetsManager.addBinaryFileTask("brickTouchedSound1", brickTouchedSoundUrl1);
       const brickTouchedSoundData2 = this.#assetsManager.addBinaryFileTask("brickTouchedSound2", brickTouchedSoundUrl2);
@@ -2360,6 +2380,14 @@ class BreackOut {
         // set particle texture
         explosionParticleSystem.particleTexture = particleTexture.texture;
         explosionParticleSystem.emitter = new Vector3(0, 0, 0);
+
+        // prepare to parse particle system files
+        const boingParticleJSON = JSON.parse(particleBoing.text);
+        boingParticleSystem = ParticleSystem.Parse(boingParticleJSON, this.#scene, "", true);
+
+        // set particle texture
+        boingParticleSystem.particleTexture = particleTexture.texture;
+        boingParticleSystem.emitter = new Vector3(0, 0, 0);
         //var sphereEmitter = explosionParticleSystem.createSphereEmitter(1.0);
 
         //soundsRepo[SoundsFX.BOING] = new Sound("boingSound", boingSoundData.data, this.#scene);
