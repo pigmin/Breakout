@@ -50,6 +50,7 @@ import looseSoundUrl from "../assets/sounds/Arkanoid SFX (2).wav";
 
 import bonusLifeSoundUrl from "../assets/sounds/Arkanoid SFX (9).wav";
 import bonusGrowSoundUrl from "../assets/sounds/Arkanoid SFX (4).wav";
+import fireSoundUrl from "../assets/sounds/Arkanoid SFX (3).wav";
 
 
 import roomModelUrl from "../assets/models/secret_area-52__room.glb";
@@ -88,6 +89,7 @@ let SoundsFX = Object.freeze({
   LOOSE: 4,
   BONUS_LIFE: 5,
   BONUS_GROW: 6,
+  FIRE: 7,
 })
 
 let soundsRepo = [];
@@ -188,6 +190,7 @@ class FireBullet extends Entity {
     // Affect a material
     this.gameObject.material = fireMaterial; 
     this.updatePosition();
+    this.gameObject.computeWorldMatrix(true);
 
     this.#trail = new TrailMesh('fire trail', this.gameObject, brickManager.scene, 0.2, 30, false);
     var trailMaterial = new StandardMaterial('sourceMat', brickManager.scene);
@@ -319,6 +322,7 @@ class BulletsManager {
 
         this.#iLiveBullets+=2;
         this.#lastFireTime = now;
+        playSound(SoundsFX.FIRE);
       }
     }
   }
@@ -473,7 +477,6 @@ class Paddle extends Entity {
       this.vx = 0;
 
 
-    console.log(this.#inputController.xpos);
     if (this.#inputController.inputMap["ArrowLeft"] || this.#inputController.moveX < 0) {
       this.vx -= constants.PADDLE_ACC_X;
       if (this.vx < -constants.MAX_VELOCITY)
@@ -617,7 +620,8 @@ class Ball extends Entity {
     // Affect a material
     this.gameObject.material = ballMaterial;
     this.updatePosition();
-
+    this.gameObject.computeWorldMatrix(true);
+    
     this.#trail = new TrailMesh('ball trail', this.gameObject, brickManager.scene, 0.2, 30, true);
     var trailMaterial = new StandardMaterial('sourceMat', brickManager.scene);
     var color = new Color3(0, 1, 0);
@@ -667,6 +671,7 @@ class Ball extends Entity {
     this.#temporarySpeedFactor = 1.0;
     this.isAlive = false;
     this.updatePosition();
+    this.gameObject.computeWorldMatrix(true);
   }
 
   slowDown(bSlowDown) {
@@ -693,13 +698,28 @@ class Ball extends Entity {
       if (this.#temporarySlowEndTime > 0 && this.#temporarySlowEndTime < performance.now())
         this.slowDown(false);
 
-      this.applyVelocities(this.#temporarySpeedFactor * (constants.BALL_SPEED_FACTOR + this.#currentTurbo));
+      if (this.checkBoundings()) {
+        this.applyVelocities(this.#temporarySpeedFactor * (constants.BALL_SPEED_FACTOR + this.#currentTurbo));
 
-      this.checkCollisions();
+        this.checkCollisions();
+  
+      }
+
 
     }
 
     this.updatePosition();
+
+    return this.isAlive;
+  }
+
+  checkBoundings() {
+    if (this.z < constants.WORLD_MIN_Z) {
+      this.isAlive = false;
+      playSound(SoundsFX.LOOSE);
+    }
+    //Check if ball is (bug) far away of game area ?
+    //if (this.x < )
 
     return this.isAlive;
   }
@@ -714,12 +734,14 @@ class Ball extends Entity {
 
     //Walls collisions
     if (this.x > constants.WORLD_MAX_X) {
-      this.x = constants.WORLD_MAX_X;
+      let delta = this.x - constants.WORLD_MAX_X;
+      this.x = constants.WORLD_MAX_X - delta;
       this.vx = -this.vx;
       //playSound(SoundsFX.BOING);
     }
     else if (this.x < constants.WORLD_MIN_X) {
-      this.x = constants.WORLD_MIN_X;
+      let delta = constants.WORLD_MIN_X - this.x;
+      this.x = constants.WORLD_MIN_X + delta;
       this.vx = -this.vx;
     }
 
@@ -731,12 +753,9 @@ class Ball extends Entity {
 
     if ((this.z > constants.WORLD_MAX_Z)) {
       //playSound(SoundsFX.BOING);
-      this.z = constants.WORLD_MAX_Z;
+      let delta = this.z - constants.WORLD_MAX_Z;
+      this.z = constants.WORLD_MAX_Z - delta;
       this.vz = -this.vz;
-    }
-    else if (this.z < constants.WORLD_MIN_Z) {
-      this.isAlive = false;
-      playSound(SoundsFX.LOOSE);
     }
 
   }
@@ -846,11 +865,11 @@ class BallsManager {
 
 
   }
-  positionMainBallAtPaddle() {
+  positionBallAtPaddle() {
     this.#balls[0].x = this.#paddle.x;
   }
 
-  launchMainBall(vx, vy, vz) {
+  launchBall(vx, vy, vz) {
     this.#iLiveBalls = 1;
     this.#balls[0].launch(vx, vy, vz);
   }
@@ -955,6 +974,7 @@ class BonusObj extends Entity {
     shadowGenerator.addShadowCaster(this.gameObject, true);
 
     this.updatePosition();
+    this.gameObject.computeWorldMatrix(true);
   }
 
   destroy() {
@@ -981,6 +1001,7 @@ class BonusObj extends Entity {
     this.isAlive = false;
     this.isTouched = false;
     this.updatePosition();
+    this.gameObject.computeWorldMatrix(true);
   }
 
 
@@ -1327,6 +1348,7 @@ class BrickObj extends Entity {
       // this.#explosionParticleSystem.targetStopDuration = 5; 
 
       this.updatePosition();
+      this.gameObject.computeWorldMatrix(true);
     }
 
     // Move the sphere upward 1/2 its height
@@ -2230,6 +2252,7 @@ class BreackOut {
       const looseSoundData = this.#assetsManager.addBinaryFileTask("looseSound", looseSoundUrl);
       const bonusLifeSoundData = this.#assetsManager.addBinaryFileTask("bonusLife", bonusLifeSoundUrl);
       const bonusGrowSoundData = this.#assetsManager.addBinaryFileTask("bonusGrow", bonusGrowSoundUrl);
+      const fireSoundData = this.#assetsManager.addBinaryFileTask("fireSound", fireSoundUrl);
 
 
       this.LoadEntity(
@@ -2293,6 +2316,10 @@ class BreackOut {
         soundsRepo[SoundsFX.BONUS_LIFE] = new Sound("bonusLife", bonusLifeSoundData.data, this.#scene);
         soundsRepo[SoundsFX.BONUS_GROW] = new Sound("bonusGrow", bonusGrowSoundData.data, this.#scene);
 
+        soundsRepo[SoundsFX.FIRE] = new Sound("fireSound", fireSoundData.data, this.#scene);
+
+        
+
         resolve(true);
       }
 
@@ -2343,7 +2370,7 @@ class BreackOut {
         this.#bulletsManager.checkInput();
         this.#bulletsManager.update();
 
-        this.#ballsManager.positionMainBallAtPaddle();
+        this.#ballsManager.positionBallAtPaddle();
         //Not a real update
         this.#ballsManager.update(false);
 
@@ -2351,7 +2378,7 @@ class BreackOut {
         this.#bonusManager.update();
 
         if (now > this.#timeToLaunch) {
-          this.#ballsManager.launchMainBall(constants.BALL_LAUNCH_VX, 0, constants.BALL_LAUNCH_VZ);
+          this.#ballsManager.launchBall(constants.BALL_LAUNCH_VX, 0, constants.BALL_LAUNCH_VZ);
           changeGameState(States.STATE_RUNNING);
         }
       }
