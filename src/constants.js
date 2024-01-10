@@ -4,6 +4,7 @@ export const BRICKS_ROWS = 25;
 export const BRICKS_COLS = 13;
 export const BRICK_WIDTH = (18.0 / 3.0);
 export const BRICK_DEPTH = (7.0 / 3.0);
+export const BRICK_HEIGHT = 2.0;
 export const BRICK_PADDING_X = (1.0 / 3.0);
 export const BRICK_PADDING_Z = (1.0 / 3.0);
 

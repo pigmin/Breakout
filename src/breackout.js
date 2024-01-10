@@ -4,7 +4,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { Scene } from "@babylonjs/core/scene";
-import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, GamepadManager, VideoTexture } from "@babylonjs/core";
+import { MeshBuilder, Scalar, StandardMaterial, Color3, Color4, TransformNode, KeyboardEventTypes, DefaultRenderingPipeline, ArcRotateCamera, HighlightLayer, AssetsManager, ParticleSystem, ShadowGenerator, DirectionalLight, Sound, Animation, Engine, GamepadManager, VideoTexture, NoiseProceduralTexture } from "@babylonjs/core";
 
 
 
@@ -22,6 +22,9 @@ import "@babylonjs/loaders/glTF";
 import wallBaseColorUrl from "../assets/textures/Metal_Plate_011_SD/Metal_Plate_011_basecolor.jpg";
 import wallNormalUrl from "../assets/textures/Metal_Plate_011_SD/Metal_Plate_011_normal.jpg";
 import wallAmbientUrl from "../assets/textures/Metal_Plate_011_SD/Metal_Plate_011_ambientOcclusion.jpg";
+
+import brickBaseColorUrl from "../assets/textures/Sci-Fi_Wall_014_basecolor.jpg";
+
 
 import bonusBaseColorUrl from "../assets/textures/Ice_001_COLOR.jpg";
 
@@ -175,20 +178,20 @@ class FireBullet extends Entity {
     //fireMaterial.bumpTexture = new Texture(rockTextureNormalUrl);
 
     const options = {
-      tessellation:5,
-      radius:constants.BULLET_RADIUS,
-      height:constants.BULLET_HEIGHT,
-      radiusTop:constants.BULLET_RADIUS_TOP,
+      tessellation: 5,
+      radius: constants.BULLET_RADIUS,
+      height: constants.BULLET_HEIGHT,
+      radiusTop: constants.BULLET_RADIUS_TOP,
     };
 
     // Our built-in 'sphere' shape.
     this.gameObject = MeshBuilder.CreateCapsule("fire", options);
     this.gameObject.receiveShadows = false;
-    this.gameObject.rotation.x = Math.PI/2;
+    this.gameObject.rotation.x = Math.PI / 2;
     //shadowGenerator.addShadowCaster(this.gameObject);
 
     // Affect a material
-    this.gameObject.material = fireMaterial; 
+    this.gameObject.material = fireMaterial;
     this.updatePosition();
     this.gameObject.computeWorldMatrix(true);
 
@@ -312,15 +315,15 @@ class BulletsManager {
       let now = performance.now();
       if ((now - this.#lastFireTime) > constants.DELAY_BETWEEN_FIRES) {
 
-        let bullet1 = new FireBullet(this.#paddle.x - (constants.PADDLE_WIDTH/2), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
+        let bullet1 = new FireBullet(this.#paddle.x - (constants.PADDLE_WIDTH / 2), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
         bullet1.launch(0, 0, constants.BULLET_LAUNCH_VX);
         this.#bullets.push(bullet1);
 
-        let bullet2 = new FireBullet(this.#paddle.x + (constants.PADDLE_WIDTH/2), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
+        let bullet2 = new FireBullet(this.#paddle.x + (constants.PADDLE_WIDTH / 2), this.#paddle.y, this.#paddle.z, this.#paddle, this.#brickManager, this.#bonusManager);
         bullet2.launch(0, 0, constants.BULLET_LAUNCH_VX);
         this.#bullets.push(bullet2);
 
-        this.#iLiveBullets+=2;
+        this.#iLiveBullets += 2;
         this.#lastFireTime = now;
         playSound(SoundsFX.FIRE);
       }
@@ -337,8 +340,7 @@ class BulletsManager {
     this.#iLiveBullets = 0;
     let filteredArray = [];
     for (let bullet of this.#bullets) {
-      if (bullet.isAlive)
-      {
+      if (bullet.isAlive) {
         filteredArray.push(bullet);
         this.#iLiveBullets++;
       }
@@ -352,8 +354,8 @@ class BulletsManager {
 
   reset() {
     for (let bullet of this.#bullets) {
-        //On supprime
-        bullet.destroy();
+      //On supprime
+      bullet.destroy();
     }
     this.#bullets = [];
   }
@@ -510,7 +512,7 @@ class Paddle extends Entity {
     //Cancel fire power
     if (this.#temporaryFirePowerEndTime > 0 && this.#temporaryFirePowerEndTime < performance.now())
       this.bonusFireBullets(false);
-  
+
     this.applyVelocities();
 
     //Walls collisions
@@ -531,13 +533,15 @@ class Paddle extends Entity {
     return this.x + (constants.PADDLE_WIDTH * this.#temporaryGrowFactor) / 2;
   }
 
-  
+
   bonusFireBullets(bActive) {
     //@todo : cancel other paddle bonus ? glue and grow only
-    this.bonusGlue(false);
-    this.bonusGrow(false);
+
 
     if (bActive) {
+      this.bonusGlue(false);
+      this.bonusGrow(false);
+
       if (!this.#bFirePower)
         this.bonusFireAnimation(false);
       this.#temporaryFirePowerEndTime = performance.now() + 20000;
@@ -555,17 +559,21 @@ class Paddle extends Entity {
   }
   bonusGlue(bActive) {
     //@todo : cancel other paddle bonus ? fire and grow only
-    this.bonusFireBullets(false);
-    this.bonusGrow(false);
-  
+    if (bActive) {
+
+      this.bonusFireBullets(false);
+      this.bonusGrow(false);
+    }
+
   }
 
   bonusGrow(bActive) {
     //@todo : cancel other paddle bonus ? fire and glue only
-    this.bonusFireBullets(false);
-    this.bonusGlue(false);
 
     if (bActive) {
+      this.bonusFireBullets(false);
+      this.bonusGlue(false);
+
       //animate to grow
       this.#temporaryGrowFactor = 1.5;
 
@@ -681,7 +689,7 @@ class Ball extends Entity {
     this.gameObject.material = ballMaterial;
     this.updatePosition();
     this.gameObject.computeWorldMatrix(true);
-    
+
     this.#trail = new TrailMesh('ball trail', this.gameObject, brickManager.scene, 0.2, 30, true);
     var trailMaterial = new StandardMaterial('sourceMat', brickManager.scene);
     var color = new Color3(0, 1, 0);
@@ -762,7 +770,7 @@ class Ball extends Entity {
         this.applyVelocities(this.#temporarySpeedFactor * (constants.BALL_SPEED_FACTOR + this.#currentTurbo));
 
         this.checkCollisions();
-  
+
       }
 
 
@@ -1190,13 +1198,13 @@ class BonusManager {
         callback: this.bonusMultiBalls.bind(this)
       },
       {
-          model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
-          color: new Color3(1, 0.0, 0.0),                 //ROUGE
-          material: new StandardMaterial("bonusMat4"),
-          score: 10,
-          probability: 5,
-          callback: this.bonusFireBullets.bind(this)
-        },
+        model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
+        color: new Color3(1, 0.0, 0.0),                 //ROUGE
+        material: new StandardMaterial("bonusMat4"),
+        score: 10,
+        probability: 5,
+        callback: this.bonusFireBullets.bind(this)
+      },
       /*  {
           model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
           color: new Color3(1, 1, 1),                     //BLANC
@@ -1238,16 +1246,8 @@ class BonusManager {
       bonusesType.model.isVisible = false;
 
       bonusesType.material.diffuseTexture = new Texture(bonusBaseColorUrl);
-      /*
-brickType.material.diffuseTexture = new Texture(brickBaseColorUrl);
-brickType.material.diffuseTexture.uScale = 1;
-brickType.material.diffuseTexture.vScale = 1;*/
       bonusesType.material.diffuseColor = bonusesType.color;
 
-      /*brickType.material.emissiveTexture = new Texture(brickNormalUrl);
-      brickType.material.emissiveTexture.uScale = 1;
-      brickType.material.emissiveTexture.vScale = 1;
-      */
       bonusesType.material.emissiveColor = bonusesType.color;
 
       bonusesType.model.material = bonusesType.material;
@@ -1274,7 +1274,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
   }
 
   bonusGrow() {
-    this.#paddle.grow(true);
+    this.#paddle.bonusGrow(true);
     playSound(SoundsFX.BONUS_GROW);
 
   }
@@ -1289,7 +1289,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
   bonusMultiBalls() {
     this.#ballsManager.bonusMultiBalls();
   }
-  
+
   bonusFireBullets() {
     this.#paddle.bonusFireBullets(true);
   }
@@ -1512,7 +1512,7 @@ class BrickManager {
 
     const options = {
       width: constants.BRICK_WIDTH - constants.BRICK_PADDING_X,
-      height: 2,
+      height: constants.BRICK_HEIGHT,
       depth: constants.BRICK_DEPTH - constants.BRICK_PADDING_Z,
       wrap: true,
     };
@@ -1596,35 +1596,26 @@ class BrickManager {
       brickType.model.receiveShadows = false;
       brickType.model.isVisible = false;
 
-      brickType.material.diffuseTexture = new Texture(wallBaseColorUrl);
-      /*
-brickType.material.diffuseTexture = new Texture(brickBaseColorUrl);
-brickType.material.diffuseTexture.uScale = 1;
-brickType.material.diffuseTexture.vScale = 1;*/
+
+      brickType.material.diffuseTexture = new Texture(brickBaseColorUrl);
       brickType.material.diffuseColor = brickType.color;
 
-      /*brickType.material.emissiveTexture = new Texture(brickNormalUrl);
-      brickType.material.emissiveTexture.uScale = 1;
-      brickType.material.emissiveTexture.vScale = 1;
-      */
-      brickType.material.emissiveColor = brickType.color;
+      /*
+      brickType.material.disableLighting = true;
+      var noiseTexture = new NoiseProceduralTexture("perlin", 128);
+      noiseTexture.persistence = 1.5;
+      noiseTexture.octaves = 1;
+      brickType.material.emissiveTexture = noiseTexture;*/
 
+      brickType.material.emissiveColor = brickType.color;
       brickType.model.material = brickType.material;
     }
 
-
-    /*brickMaterial.bumpTexture = new Texture(brickNormalUrl);
-    brickMaterial.bumpTexture.uScale = 1;
-    brickMaterial.bumpTexture.vScale = 1;
-*/
     this.init();
   }
 
 
   init() {
-
-
-    //this.y = options.height/2;
 
     this.loadLevel();
   }
@@ -1658,7 +1649,7 @@ brickType.material.diffuseTexture.vScale = 1;*/
       for (let i = 0; i < constants.BRICKS_COLS; i++) {
         let index = j * constants.BRICKS_COLS + i;
         let x = i * constants.BRICK_WIDTH;
-        let y = 0;
+        let y = constants.BRICK_HEIGHT/2;
         let z = j * constants.BRICK_DEPTH;
         let car = currentLevelMatrix[(constants.BRICKS_ROWS - 1) - j].charAt(i);
         if (car === " ") {
@@ -2010,7 +2001,7 @@ class BreackOut {
 
 
     this.#ballsManager = new BallsManager(this.#paddle, this.#brickManager, this.#bonusManager);
-    
+
     this.#bulletsManager = new BulletsManager(this.#paddle, this.#brickManager, this.#bonusManager, this.#inputController);
 
     //Ok it*s ugly but it's only a game not a nuclear plant !
@@ -2383,7 +2374,7 @@ class BreackOut {
 
         soundsRepo[SoundsFX.FIRE] = new Sound("fireSound", fireSoundData.data, this.#scene);
 
-        
+
 
         resolve(true);
       }
