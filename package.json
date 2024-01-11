@@ -38,7 +38,7 @@
   "sideEffects": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pigmin/Breakout.git"
+    "url": "https://github.com/pigmin/Breakout.git"
   },
   "scripts": {
     "start": "npx webpack serve --config webpack.dev.js",
