@@ -1367,46 +1367,65 @@ class BonusManager {
 
     this.#bonusesTypeDef = [
       {
-        model: MeshBuilder.CreateCapsule(`bonusModel0`, options),
-        color: new Color3(0.0, 1, 0.0),                   //VERT
-        material: new StandardMaterial("bonusMat0"),
-        score: 10,
+        model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
+        color: new Color3(1, 0.0, 0.0),                 //ROUGE
+        material: new StandardMaterial("bonusMat4"),
+        score: 1000,
         probability: 5,
-        callback: this.bonusSlow.bind(this)
-      },
-      {
-        model: MeshBuilder.CreateCapsule(`bonusModel1`, options),
-        color: new Color3(1, 0.0, 1.0),                   //VIOLET
-        material: new StandardMaterial("bonusMat1"),
-        score: 10,
-        probability: 5,
-        callback: this.bonusLife.bind(this)
-      },
+        callback: this.bonusFireBullets.bind(this)
+      },         
       {
         model: MeshBuilder.CreateCapsule(`bonusModel2`, options),
-        color: new Color3(0.0, 0.4, 1),                   //BLEU FONCE
+        color: new Color3(0.0, 0.0, 1),                   //BLEU FONCE
         material: new StandardMaterial("bonusMat2"),
         score: 10,
         probability: 5,
         callback: this.bonusGrow.bind(this)
       },
       {
+        model: MeshBuilder.CreateCapsule(`bonusModel0`, options),
+        color: new Color3(0.0, 1, 0.0),                   //VERT
+        material: new StandardMaterial("bonusMat0"),
+        score: 10,
+        probability: 5,
+        callback: this.bonusGlue.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonusModel1`, options),
+        color: new Color3(0.56, 0.56, 0.56),                   //GRIS
+        material: new StandardMaterial("bonusMat1"),
+        score: 10,
+        probability: 5,
+        callback: this.bonusLife.bind(this)
+      },
+      {
+        model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
+        color: new Color3(1, 0.68, 0),                   //ORANGE
+        material: new StandardMaterial("bonusMat6"),
+        score: 10,
+        probability: 5,
+        callback: this.bonusSlow.bind(this)
+      },
+ 
+      {
         model: MeshBuilder.CreateCapsule(`bonusModel3`, options),
-        color: new Color3(1, 1, 0),                       //JAUNE VIF
+        color: new Color3(0, 0.5, 0.5),                       //CYAN
         material: new StandardMaterial("bonusMat3"),
         score: 10,
         probability: 5,
         callback: this.bonusMultiBalls.bind(this)
       },
+      /*
+        {
+          model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
+          color: new Color3(0, 1.0, 1.0),               //TURQUOISE
+          material: new StandardMaterial("bonusMat7"),
+          score: 10,
+          probability: 5,
+          callback: this.bonus.bind(this)
+        },
+     
       {
-        model: MeshBuilder.CreateCapsule(`bonusModel4`, options),
-        color: new Color3(1, 0.0, 0.0),                 //ROUGE
-        material: new StandardMaterial("bonusMat4"),
-        score: 10,
-        probability: 5,
-        callback: this.bonusFireBullets.bind(this)
-      },
-      /*  {
           model: MeshBuilder.CreateCapsule(`bonusModel5`, options),
           color: new Color3(1, 1, 1),                     //BLANC
           material: new StandardMaterial("bonusMat5"),
@@ -1414,22 +1433,8 @@ class BonusManager {
           probability: 5,
           callback: this.noBonus.bind(this)
         },
-        {
-          model: MeshBuilder.CreateCapsule(`bonusModel6`, options),
-          color: new Color3(1, 0.6, 0),                   //ORANGE
-          material: new StandardMaterial("bonusMat6"),
-          score: 10,
-          probability: 5,
-          callback: this.noBonus.bind(this)
-        },
-        {
-          model: MeshBuilder.CreateCapsule(`bonusModel7`, options),
-          color: new Color3(0, 1.0, 1.0),               //TURQUOISE
-          material: new StandardMaterial("bonusMat7"),
-          score: 10,
-          probability: 5,
-          callback: this.noBonus.bind(this)
-        },
+
+
         {
           model: MeshBuilder.CreateCapsule(`bonusModel8`, options),
           color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
@@ -1472,6 +1477,10 @@ class BonusManager {
 
   bonusSlow() {
     this.#ballsManager.slowDown(true);
+  }
+
+  bonusGlue() {
+    
   }
 
   bonusGrow() {
@@ -1600,6 +1609,11 @@ class BrickObj extends Entity {
     else {
       this.type = brickTypeObj.type;
       this.life = brickTypeObj.life;
+      if (this.life == -1)
+      {
+        //Brick grise
+        this.life = 2 + Math.round((currentLevel / 8));
+      }
       this.score = brickTypeObj.score;
       // Our built-in 'sphere' shape.
       this.gameObject = brickTypeObj.model.createInstance(`brick${index}`);
@@ -1724,70 +1738,70 @@ class BrickManager {
         color: new Color3(0.0, 1, 0.0),                   //VERT
         material: new StandardMaterial("brickMat0"),
         life: 1,
-        score: 10,
+        score: 80,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel1`, options),
         color: new Color3(1, 0.0, 1.0),                   //VIOLET
         material: new StandardMaterial("brickMat1"),
         life: 1,
-        score: 10,
+        score: 110,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel2`, options),
-        color: new Color3(0.0, 0.4, 1),                   //BLEU FONCE
+        color: new Color3(0.0, 0.43, 1),                   //BLEU FONCE
         material: new StandardMaterial("brickMat2"),
         life: 1,
-        score: 10,
+        score: 100,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel3`, options),
         color: new Color3(1, 1, 0),                       //JAUNE VIF
         material: new StandardMaterial("brickMat3"),
         life: 1,
-        score: 10,
+        score: 120,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel4`, options),
         color: new Color3(1, 0.0, 0.0),                 //ROUGE
         material: new StandardMaterial("brickMat4"),
         life: 1,
-        score: 10,
+        score: 90,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel5`, options),
-        color: new Color3(1, 1, 1),                     //BLANC
+        color: new Color3(0.94, 0.94, 0.94),                     //BLANC
         material: new StandardMaterial("brickMat5"),
         life: 1,
-        score: 10,
+        score: 50,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel6`, options),
-        color: new Color3(1, 0.6, 0),                   //ORANGE
+        color: new Color3(1, 0.56, 0),                   //ORANGE
         material: new StandardMaterial("brickMat6"),
         life: 1,
-        score: 10,
+        score: 60,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel7`, options),
         color: new Color3(0, 1.0, 1.0),               //TURQUOISE
         material: new StandardMaterial("brickMat7"),
         life: 1,
-        score: 10,
+        score: 70,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel8`, options),
-        color: new Color3(0.7, 0.7, 0.0),               //JAUNE FONCE
+        color: new Color3(0.73, 0.68, 0.0),               //JAUNE FONCE/GOLD
         material: new StandardMaterial("brickMat8"),
-        life: 1,
-        score: 10,
+        life: -1,
+        score: 0,
       },
       {
         model: MeshBuilder.CreateBox(`brickModel9`, options),
-        color: new Color3(0.6, 0.6, 0.6),             //GRIS
+        color: new Color3(0.61, 0.61, 0.61),             //GRIS
         material: new StandardMaterial("brickMat9"),
         life: 2,
-        score: 20,
+        score: -1,//Special one
       }
     ];
 
@@ -1875,8 +1889,8 @@ class BrickManager {
           this.#bricks[index].isAlive = true;
           //On la cache par defaut pour l'anim
           this.#bricks[index].setVisible(false);
-
-          this.#iLiveBricks++;
+          if (this.#bricks[index].life != 0)    //Invulnerables brick are not counted
+            this.#iLiveBricks++;
         }
       }
     }
@@ -1990,7 +2004,13 @@ class BrickManager {
         //this.#bricks[index].setVisible(false);
         this.#bricks[index].explode();
         this.#iLiveBricks--;
-        currentScore += this.#bricks[index].score;
+        if (this.#bricks[index].score < 0)
+        {
+          //Brick grise : 50*current level
+          currentScore += 50 * currentLevel;
+        }
+        else
+          currentScore += this.#bricks[index].score;
 
         ret = true;
       }
