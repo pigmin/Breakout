@@ -5,6 +5,7 @@
   "main": "index.js",
   "author": "",
   "license": "ISC",
+  "homepage": "https://pigmin.github.io/Breakout/",
   "dependencies": {
     "@babylonjs/core": "^6.35.0",
     "@babylonjs/gui": "^6.35.0",
@@ -24,6 +25,7 @@
     "eslint-plugin-package-json": "^0.2.0",
     "eslint-plugin-promise": "^6.1.1",
     "file-loader": "^6.2.0",
+    "gh-pages": "^6.1.1",
     "html-webpack-plugin": "^5.6.0",
     "js-loader": "^0.1.1",
     "source-map-loader": "^4.0.1",
@@ -36,7 +38,7 @@
   "sideEffects": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/pigmin/Breakout.git"
+    "url": "git+https://github.com/pigmin/Breakout.git"
   },
   "scripts": {
     "start": "npx webpack serve --config webpack.dev.js",
@@ -44,6 +46,8 @@
     "start:prod": "webpack serve --config webpack.prod.js",
     "build:dev": "npx webpack --config webpack.dev.js",
     "build": "npx webpack --config webpack.prod.js",
-    "lint": "npx eslint . --ext .js"
+    "lint": "npx eslint . --ext .js",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"    
   }
 }
