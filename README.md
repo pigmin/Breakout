@@ -1,4 +1,5 @@
 # Barkanoid
+![image](https://github.com/pigmin/Breakout/assets/7916802/9b1fc78a-c939-43d2-9aa5-611c251f1cbe)
 
 My first game using Babylon JS.
 
