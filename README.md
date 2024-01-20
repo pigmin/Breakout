@@ -15,7 +15,7 @@ Like usual when discovering game libraries like Babylon JS (it's not limited to 
 
 1. Open a terminal and go to your projects directory
    
-`cd myprojects`
+Exemple : `cd myprojects`
 
 
 
